@@ -1,0 +1,8 @@
+@import "tailwindcss";
+
+/* 額外補強列印時的防中斷樣式 */
+@media print {
+  .print\:hidden {
+    display: none !important;
+  }
+}
