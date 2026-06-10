@@ -1,4 +1,3 @@
-// @ts-nocheck
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 // ... 後續原本的程式碼
 import { initializeApp } from 'firebase/app';
@@ -41,10 +40,71 @@ import {
 } from 'lucide-react';
 import XLSX from 'xlsx-js-style';
 
-// ==========================================
-// 1. Firebase 資料庫初始化與安全連線設定
-// ==========================================
-let app, auth, db, appId;
+// =========================================================================
+// 1. 全局環境變數與外部擴充宣告 (徹底解決 Cannot find name 錯誤)
+// =========================================================================
+declare const __firebase_config: string | undefined;
+declare const __app_id: string | undefined;
+declare const __initial_auth_token: string | undefined;
+
+interface Window {
+  XLSX: any;
+}
+
+// =========================================================================
+// 2. 資料結構與型別定義 (TypeScript 核心規格表)
+// =========================================================================
+
+// 差旅紀錄的資料結構
+interface TravelRecord {
+  id: string;
+  name: string;
+  group: string;
+  title: string;
+  status: string;              // 狀態，例如：'待審核'、'已核准'、'已駁回'
+  date: string;                // 開始日期 (YYYY-MM-DD)
+  isMultiDay?: boolean;        // 是否為多日
+  endDate?: string;            // 結束日期
+  days?: number;               // 天數
+  destination: string;         // 目的地
+  reason: string;              // 出差事由
+  transportMode: string;       // 交通工具
+  hsrStation?: string;         // 高鐵站
+  totalDistance?: number;      // 總里程
+  duration?: number;           // 時數
+  transportFee: number;        // 交通費
+  accommodationFee: number;    // 住宿費
+  mealFee: number;             // 膳雜費
+  totalFee: number;            // 總費用
+}
+
+// 假別/結餘時數結構
+interface LeaveBalance {
+  d: number; // 天
+  h: number; // 時
+}
+
+// 同仁基本資料與特休結構
+interface Employee {
+  name: string;
+  title: string;
+  group: string;
+  hireDate: string;
+  remainingTe: LeaveBalance;
+  remainingBu: LeaveBalance;
+  takenShi: LeaveBalance;
+  takenBing: LeaveBalance;
+  takenSang: LeaveBalance;
+}
+
+// 下拉選單群組限定型別
+type GroupType = '全部' | '行政人員' | '資訊人員' | '輔導人員' | string;
+
+
+// =========================================================================
+// 3. Firebase 資料庫初始化與安全連線設定 (明確指定 any 避免隱式型別錯誤)
+// =========================================================================
+let app: any, auth: any, db: any, appId: string;
 try {
   // 1. 改用 window 物件來讀取全域變數，這樣 TypeScript 就不會報錯中斷
   const globalConfig = (window as any).__firebase_config;
@@ -69,8 +129,13 @@ try {
   console.error("Firebase 連線初始化失敗:", e);
 }
 
+
+// =========================================================================
+// 4. 靜態設定資料 (加上型別限制，防止物件 Key 的對應報錯)
+// =========================================================================
+
 // 預設之 115 年度同仁留用與出勤結餘資料
-const INITIAL_EMPLOYEES = [
+const INITIAL_EMPLOYEES: Employee[] = [
   { name: '康芳鈞', title: '資訊人員', group: '中區小組', hireDate: '111/06/01', remainingTe: { d: 7, h: 2 }, remainingBu: { d: 0, h: 0 }, takenShi: { d: 0, h: 0 }, takenBing: { d: 0, h: 0 }, takenSang: { d: 0, h: 0 } },
   { name: '戴君櫟', title: '輔導人員', group: '中區小組', hireDate: '111/06/01', remainingTe: { d: 7, h: 0 }, remainingBu: { d: 1, h: 4 }, takenShi: { d: 0, h: 0 }, takenBing: { d: 0, h: 0 }, takenSang: { d: 0, h: 0 } },
   { name: '李佩縜', title: '輔導人員', group: '西區小組', hireDate: '111/07/01', remainingTe: { d: 6, h: 7 }, remainingBu: { d: 0, h: 7 }, takenShi: { d: 0, h: 0 }, takenBing: { d: 0, h: 0 }, takenSang: { d: 0, h: 0 } },
@@ -84,7 +149,8 @@ const INITIAL_EMPLOYEES = [
   { name: '黃銘麒', title: '輔導人員', group: '北區小組', hireDate: '115/02/01', remainingTe: { d: 0, h: 0 }, remainingBu: { d: 3, h: 2 }, takenShi: { d: 0, h: 0 }, takenBing: { d: 0, h: 0 }, takenSang: { d: 0, h: 0 } }
 ];
 
-const ROLE_SORT_ORDER = {
+// 💡 加上 Record<string, number> 解決 TS7053 的對應索引報錯
+const ROLE_SORT_ORDER: Record<string, number> = {
   '行政人員': 1,
   '資訊人員': 2,
   '輔導人員': 3
@@ -101,13 +167,14 @@ const COMMON_LOCATIONS = [
   { name: '雲林國小', address: '雲林縣斗六市莊敬路100號' }
 ];
 
-const HSR_FARES_FROM_YUNLIN = {
+// 💡 加上 Record<string, number> 解決高鐵站動態查詢時的型別錯誤
+const HSR_FARES_FROM_YUNLIN: Record<string, number> = {
   '南港': 970, '台北': 930, '板橋': 900, '桃園': 780,
   '新竹': 640, '苗栗': 500, '台中': 230, '彰化': 110,
   '嘉義': 150, '台南': 420, '左營': 560
 };
 
-const HSR_FARES_NON_RESERVED = {
+const HSR_FARES_NON_RESERVED: Record<string, number> = {
   '南港': 940, '台北': 900, '板橋': 870, '桃園': 755,
   '新竹': 620, '苗栗': 485, '台中': 220, '彰化': 105,
   '嘉義': 145, '台南': 405, '左營': 540
