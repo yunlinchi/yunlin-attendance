@@ -1,5 +1,6 @@
 // @ts-nocheck
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+// ... 後續原本的程式碼
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'firebase/auth';
 import { getFirestore, collection, onSnapshot, addDoc, deleteDoc, doc, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore';
@@ -38,13 +39,17 @@ import {
   XCircle,
   FileDown
 } from 'lucide-react';
+import XLSX from 'xlsx-js-style';
 
 // ==========================================
 // 1. Firebase 資料庫初始化與安全連線設定
 // ==========================================
 let app, auth, db, appId;
 try {
-  const firebaseConfig = typeof __firebase_config !== 'undefined' && __firebase_config ? JSON.parse(__firebase_config) : {
+  // 1. 改用 window 物件來讀取全域變數，這樣 TypeScript 就不會報錯中斷
+  const globalConfig = (window as any).__firebase_config;
+  
+  const firebaseConfig = globalConfig ? JSON.parse(globalConfig) : {
     apiKey: "AIzaSyDjPezJDSRZ-Vvb-XySDEX9D8iR3WSuS2I",
     authDomain: "yunlin-digital-travel.firebaseapp.com",
     projectId: "yunlin-digital-travel",
@@ -53,10 +58,13 @@ try {
     appId: "1:696155447858:web:f70ae90592e901ba90922b",
     measurementId: "G-S83BJ89QTV"
   };
+
   app = initializeApp(firebaseConfig);
   auth = getAuth(app);
   db = getFirestore(app);
-  appId = typeof __app_id !== 'undefined' ? __app_id : 'travel-expense-app';
+  
+  // 2. 同理，改用 window 讀取 appId，若無則套用後方的預設名稱
+  appId = (window as any).__app_id || 'travel-expense-app';
 } catch (e) {
   console.error("Firebase 連線初始化失敗:", e);
 }
@@ -770,14 +778,7 @@ export default function App() {
     if (formData.transportMode === 'hsr') setFormData(prev => ({ ...prev, isOutCounty: true }));
   }, [formData.transportMode, formData.hsrStation]);
 
-  useEffect(() => {
-    if (!window.XLSX) {
-      const script = document.createElement('script');
-      script.src = 'https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js';
-      script.async = true;
-      document.head.appendChild(script);
-    }
-  }, []);
+
 
   // 差旅表單輸入處理
   const handleInputChange = (e) => {
@@ -1216,8 +1217,7 @@ export default function App() {
 
   // 100% 會計專用 標楷體雙欄 Excel 出差旅費報告表 (帶有動態公式與中文大寫)
   const exportExcel = (memberName = 'all') => {
-    if (!window.XLSX) return showDialog('alert', '提示', 'Excel 模組載入中，請稍後');
-    const XLSX = window.XLSX;
+    
     
     let dataToExport = records.filter(r => {
       const rStatus = r.status || 'pending';
