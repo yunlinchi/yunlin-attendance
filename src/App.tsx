@@ -123,7 +123,6 @@ try {
 // 4. 靜態設定資料
 // =========================================================================
 const INITIAL_EMPLOYEES: Employee[] = [
-const INITIAL_EMPLOYEES: Employee[] = [
   { name: '康芳鈞', title: '資訊人員', group: '中區小組', hireDate: '111/06/01', remainingTe: { d: 7, h: 2 }, remainingBu: { d: 0, h: 0 }, takenShi: { d: 0, h: 0 }, takenBing: { d: 0, h: 0 }, takenSang: { d: 0, h: 0 } },
   { name: '戴君櫟', title: '輔導人員', group: '中區小組', hireDate: '111/06/01', remainingTe: { d: 7, h: 0 }, remainingBu: { d: 1, h: 4 }, takenShi: { d: 0, h: 0 }, takenBing: { d: 0, h: 0 }, takenSang: { d: 0, h: 0 } },
   { name: '李佩縜', title: '輔導人員', group: '西區小組', hireDate: '111/07/01', remainingTe: { d: 6, h: 7 }, remainingBu: { d: 0, h: 7 }, takenShi: { d: 0, h: 0 }, takenBing: { d: 0, h: 0 }, takenSang: { d: 0, h: 0 } },
