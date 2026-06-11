@@ -644,37 +644,28 @@ export default function App() {
     return () => unsubscribe();
   }, [user]);
 
-  useEffect(() => {
-    if (!user || !db) return;
-    const empCol = collection(db, 'artifacts', appId, 'public', 'data', 'employees');
-    const unsub = onSnapshot(empCol, (snapshot) => {
-      if (snapshot.empty) {
-        INITIAL_EMPLOYEES.forEach(async (emp) => {
-          await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'employees', emp.name), emp, { merge: true });
-        });
-        setEmployees(INITIAL_EMPLOYEES);
-      } else {
-        const list = snapshot.docs.map(doc => doc.data() as any);
-        const mergedEmployees = INITIAL_EMPLOYEES.map(initEmp => {
-          const found = list.find((e: any) => e.name === initEmp.name);
-          if (found) {
-            return {
-              ...initEmp,
-              ...found,
-              remainingTe: found.remainingTe || initEmp.remainingTe,
-              remainingBu: found.remainingBu || initEmp.remainingBu,
-              takenShi: found.takenShi || initEmp.takenShi,
-              takenBing: found.takenBing || initEmp.takenBing,
-              takenSang: found.takenSang || initEmp.takenSang,
-            };
-          }
-          return initEmp;
-        });
-        setEmployees(mergedEmployees);
-      }
-    });
-    return () => unsub();
-  }, [user]);
+useEffect(() => {
+  if (!user || !db) return;
+  const empCol = collection(db, 'artifacts', appId, 'public', 'data', 'employees');
+  const unsub = onSnapshot(empCol, (snapshot) => {
+    if (snapshot.empty) {
+      // 如果雲端是空的，就把最新完美的 INITIAL_EMPLOYEES 寫進去
+      INITIAL_EMPLOYEES.forEach(async (emp) => {
+        await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'employees', emp.name), emp, { merge: true });
+      });
+      setEmployees(INITIAL_EMPLOYEES);
+    } else {
+      // 【修改這裡】不再與 INITIAL_EMPLOYEES 進行容易出錯的雙向合併，完全以雲端資料庫（或您代碼新增進去的）為唯一真理
+      const list = snapshot.docs.map(doc => doc.data() as any);
+      
+      // 按照職稱排序，確保畫面的順序依然漂亮
+      list.sort((a, b) => (ROLE_SORT_ORDER[a.title] || 99) - (ROLE_SORT_ORDER[b.title] || 99));
+      
+      setEmployees(list);
+    }
+  });
+  return () => unsub();
+}, [user]);
 
   useEffect(() => {
     if (!user || !db) return;
