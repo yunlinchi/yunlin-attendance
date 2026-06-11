@@ -677,7 +677,7 @@ export default function App() {
     return () => unsubscribe();
   }, [user, db, appId]); 
 
-  useEffect(() => {
+useEffect(() => {
     if (!user || !db) return;
     const empCol = collection(db, 'artifacts', appId, 'public', 'data', 'employees_v2');
     
@@ -690,7 +690,13 @@ export default function App() {
       } else {
         const cloudList = snapshot.docs.map(doc => doc.data() as any);
         
-        const updatedList = cloudList.map(currentData => {
+        // 【核心修正】：過濾掉已經不在 INITIAL_EMPLOYEES 名單裡的「離職同仁」
+        // 這樣只要你在程式碼中刪除該同仁，他的名字就不會再出現在下拉選單跟細算表中！
+        const activeCloudList = cloudList.filter(cloudEmp => 
+          INITIAL_EMPLOYEES.some(localEmp => localEmp.name === cloudEmp.name)
+        );
+        
+        const updatedList = activeCloudList.map(currentData => {
           const localMatch = INITIAL_EMPLOYEES.find(l => l.name === currentData.name);
           if (!localMatch) return currentData;
           
