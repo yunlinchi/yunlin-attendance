@@ -53,6 +53,13 @@ interface Window {
 // =========================================================================
 // 2. 資料結構與型別定義
 // =========================================================================
+interface AppUser {
+  id: string;
+  email: string;
+  employeeName: string;
+  role: 'manager' | 'employee';
+}
+
 interface TravelRecord {
   id: string;
   name: string;
@@ -166,6 +173,21 @@ const CURRENT_ROC_YEAR = new Date().getFullYear() - 1911;
 
 export default function App() {
   const [user, setUser] = useState(null);
+  
+  // === 【全新身分驗證帳號系統狀態】 ===
+  const [appUser, setAppUser] = useState<AppUser | null>(() => {
+    try {
+      const saved = localStorage.getItem('travel_app_user');
+      return saved ? JSON.parse(saved) : null;
+    } catch { return null; }
+  });
+  const [accounts, setAccounts] = useState<any[]>([]);
+  const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
+  const [authEmail, setAuthEmail] = useState('');
+  const [authPassword, setAuthPassword] = useState('');
+  const [authName, setAuthName] = useState('');
+  // ======================================
+
   const [activeTab, setActiveTab] = useState('attendance_dashboard'); 
   const [notification, setNotification] = useState(null);
   const [applyType, setApplyType] = useState('leave'); 
@@ -174,10 +196,6 @@ export default function App() {
   const [requests, setRequests] = useState([]);
   const [overtimeRequests, setOvertimeRequests] = useState([]);
   const [syncedRequests, setSyncedRequests] = useState([]);
-
-  const [inputPassword, setInputPassword] = useState('');
-  const [isUnlocked, setIsUnlocked] = useState(false);
-  const correctPassword = "115"; 
 
   const [leaveSearch, setLeaveSearch] = useState('');
   const [leaveFilterYear, setLeaveFilterYear] = useState('全部');
@@ -217,13 +235,12 @@ export default function App() {
   const [records, setRecords] = useState([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [gmapsKey, setGmapsKey] = useState(() => localStorage.getItem('gmaps_api_key') || '');
-  const [currentUser, setCurrentUser] = useState('主管端'); 
   const [rosterSearch, setRosterSearch] = useState('');
   const [selectedGroup, setSelectedGroup] = useState('全部');
 
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split('T')[0],
-    memberNames: [INITIAL_EMPLOYEES[0].name],
+    memberNames: [],
     reason: '辦理研習',
     startLocation: '越港國小',
     destination: '',
@@ -633,16 +650,23 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
- useEffect(() => {
-    // 這裡微調：確保 user、db 和 appId 都準備好才執行
+  // 監聽並加載帳號資料庫 (系統帳號密碼機制)
+  useEffect(() => {
+    if (!user || !db || !appId) return;
+    const accCol = collection(db, 'artifacts', appId, 'public', 'data', 'system_accounts');
+    const unsub = onSnapshot(accCol, (snapshot) => {
+      const list = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() as any }));
+      setAccounts(list);
+    }, (err) => console.error("帳號資料庫讀取失敗:", err));
+    return () => unsub();
+  }, [user, db, appId]);
+
+  useEffect(() => {
     if (!user || !db || !appId) return;
     
     const recordsRef = collection(db, 'artifacts', appId, 'public', 'data', 'travel_expenses');
     const unsubscribe = onSnapshot(recordsRef, (snapshot) => {
-      // 這裡微調：加上 as any 避免 TypeScript 報錯
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() as any }));
-      
-      // 依日期排序（由新到舊）
       data.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
       setRecords(data);
     }, (error) => {
@@ -651,33 +675,30 @@ export default function App() {
     });
     
     return () => unsubscribe();
-  }, [user, db, appId]); // 這裡微調：補上完整的依賴，確保連線絕對穩定不漏接
+  }, [user, db, appId]); 
 
   useEffect(() => {
-    if (!user || !db || !appId) return;
+    if (!user || !db) return;
     const empCol = collection(db, 'artifacts', appId, 'public', 'data', 'employees_v2');
     
     const unsub = onSnapshot(empCol, async (snapshot) => {
       if (snapshot.empty) {
-        // 1. 如果雲端完全是空的，把 INITIAL_EMPLOYEES 全灌進去
         for (const emp of INITIAL_EMPLOYEES) {
           await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'employees_v2', emp.name), emp, { merge: true });
         }
         setEmployees(INITIAL_EMPLOYEES);
       } else {
-        // 2. 如果雲端已經有資料了
         const cloudList = snapshot.docs.map(doc => doc.data() as any);
         
-        // 【修正點 1】：移除了原本會「每次強制覆蓋雲端時數」的 setDoc 迴圈
-        // 【修正點 2】：合併時，強制保護「動態時數」欄位，必須以雲端 (currentData) 最新扣除後的數據為主！
         const updatedList = cloudList.map(currentData => {
           const localMatch = INITIAL_EMPLOYEES.find(l => l.name === currentData.name);
           if (!localMatch) return currentData;
           
           return {
-            ...currentData, // 先套用雲端資料
-            ...localMatch,  // 讓本地可控制最新的職稱、組別異動
-            // 但請假時數不能被 localMatch 覆蓋，必須拿回雲端最新的餘額：
+            ...currentData,
+            title: localMatch.title,
+            group: localMatch.group,
+            hireDate: localMatch.hireDate,
             remainingTe: currentData.remainingTe || localMatch.remainingTe,
             remainingBu: currentData.remainingBu || localMatch.remainingBu,
             takenShi: currentData.takenShi || localMatch.takenShi,
@@ -686,16 +707,13 @@ export default function App() {
           };
         });
 
-        // 3. 若有新進人員在代碼中新增，但雲端還沒有，就自動把它補進去
         const missingEmps = INITIAL_EMPLOYEES.filter(l => !cloudList.some(c => c.name === l.name));
         for (const emp of missingEmps) {
           await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'employees_v2', emp.name), emp, { merge: true });
           updatedList.push(emp);
         }
         
-        // 按照職稱排序，確保畫面的順序依然漂亮
         updatedList.sort((a, b) => (ROLE_SORT_ORDER[a.title] || 99) - (ROLE_SORT_ORDER[b.title] || 99));
-        
         setEmployees(updatedList);
       }
     }, (error) => {
@@ -703,9 +721,8 @@ export default function App() {
     });
 
     return () => unsub();
-  }, [user, db, appId]);
+  }, [user, db, appId]); 
 
-// 1. 監聽請假紀錄 (已優化連線依賴與型別)
   useEffect(() => {
     if (!user || !db || !appId) return;
     const leavesCol = collection(db, 'artifacts', appId, 'public', 'data', 'leaves');
@@ -716,9 +733,8 @@ export default function App() {
       console.error("讀取請假紀錄失敗:", error);
     });
     return () => unsub();
-  }, [user, db, appId]); // 修正點：補齊完整的依賴，確保網頁切換時連線絕不中斷
+  }, [user, db, appId]); 
 
-  // 2. 監聽加班紀錄 (已優化連線依賴與型別)
   useEffect(() => {
     if (!user || !db || !appId) return;
     const overtimesCol = collection(db, 'artifacts', appId, 'public', 'data', 'overtimes');
@@ -729,15 +745,77 @@ export default function App() {
       console.error("讀取加班紀錄失敗:", error);
     });
     return () => unsub();
-  }, [user, db, appId]); // 修正點：補齊完整的依賴，確保加班資料即時更新
+  }, [user, db, appId]); 
 
-  // 3. 監聽目前切換的使用者角色 (此段原邏輯完全正確，維持原樣)
+  // 當使用者登入成功，鎖定其預設申請人為自己
   useEffect(() => {
-    if (currentUser !== '主管端') {
-      setIsUnlocked(false);
-      setInputPassword('');
+    if (appUser && appUser.role === 'employee') {
+      setFormApplicant(appUser.employeeName);
+      setFormData(prev => ({...prev, memberNames: [appUser.employeeName]}));
+    } else if (appUser && appUser.role === 'manager') {
+      setFormApplicant('');
     }
-  }, [currentUser]);
+  }, [appUser]);
+
+  // ==========================================
+  // 自訂帳號註冊與登入處理系統
+  // ==========================================
+  const handleRegisterAuth = async (e) => {
+    e.preventDefault();
+    if (!authEmail.includes('@')) return showDialog('alert', '格式錯誤', '請輸入有效的電子郵件格式！');
+    if (authPassword.length < 6) return showDialog('alert', '格式錯誤', '密碼長度至少需要 6 個字元！');
+    if (!authName) return showDialog('alert', '提示', '請選擇您對應的同仁姓名或主管身分！');
+
+    if (accounts.some(acc => acc.email === authEmail)) {
+      return showDialog('alert', '註冊失敗', '此 Email 已經被註冊過囉！');
+    }
+    if (accounts.some(acc => acc.employeeName === authName)) {
+      return showDialog('alert', '註冊失敗', `身分「${authName}」已經被其他帳號綁定，請聯絡管理員！`);
+    }
+
+    // 擴充管理員白名單：只要選擇這些身分，註冊後就是 manager 權限
+    const managerTitles = ['系統管理員', '中心主任(一)', '中心主任(二)', '主管端'];
+    const role = managerTitles.includes(authName) ? 'manager' : 'employee';
+    try {
+      const accCol = collection(db, 'artifacts', appId, 'public', 'data', 'system_accounts');
+      const newAcc = {
+        email: authEmail,
+        password: authPassword, 
+        employeeName: authName,
+        role: role,
+        createdAt: new Date().toISOString()
+      };
+      const docRef = await addDoc(accCol, newAcc);
+      const userObj = { id: docRef.id, ...newAcc } as AppUser;
+      
+      setAppUser(userObj);
+      localStorage.setItem('travel_app_user', JSON.stringify(userObj));
+      showToast('註冊成功！歡迎進入系統。');
+      
+      setAuthEmail(''); setAuthPassword(''); setAuthName('');
+    } catch (err) {
+      showDialog('alert', '錯誤', '註冊儲存失敗：' + err.message);
+    }
+  };
+
+  const handleLoginAuth = async (e) => {
+    e.preventDefault();
+    const match = accounts.find(acc => acc.email === authEmail && acc.password === authPassword);
+    if (match) {
+      setAppUser(match as AppUser);
+      localStorage.setItem('travel_app_user', JSON.stringify(match));
+      showToast(`登入成功！歡迎回來，${match.employeeName}。`);
+      setAuthEmail(''); setAuthPassword('');
+    } else {
+      showDialog('alert', '登入失敗', '帳號或密碼錯誤，請重新確認！');
+    }
+  };
+
+  const handleLogout = () => {
+    setAppUser(null);
+    localStorage.removeItem('travel_app_user');
+    showToast('您已安全登出系統。');
+  };
 
   // ==========================================
   // 4. 數據過濾與分頁運算 (useMemo Hooks)
@@ -1039,18 +1117,17 @@ export default function App() {
       }
     }
 
-try {
+    try {
       const fees = calculateFees(formData);
       const recordsRef = collection(db, 'artifacts', appId, 'public', 'data', 'travel_expenses');
       
       await Promise.all(formData.memberNames.map(async (memberName) => {
-        // 【要修改的地方】加入 || { name: memberName, title: '未知', group: '未知' } 作為防呆預設值
         const memberInfo = employees.find(m => m.name === memberName) || { name: memberName, title: '未知', group: '未知' };
         
         const recordData = {
           ...formData, name: memberInfo.name, title: memberInfo.title, group: memberInfo.group,
           ...fees, distance: finalDist || 0, totalDistance: (finalDist || 0) * (formData.isRoundTrip ? 2 : 1),
-          createdAt: serverTimestamp(), userId: user?.uid || 'anonymous', status: 'pending'
+          createdAt: serverTimestamp(), userId: appUser?.id || 'anonymous', status: 'pending'
         };
         delete recordData.memberNames; 
         await addDoc(recordsRef, recordData);
@@ -1059,7 +1136,7 @@ try {
       showDialog('alert', '成功', `已成功新增 ${formData.memberNames.length} 筆差旅紀錄！`);
       setFormData({
         date: new Date().toISOString().split('T')[0],
-        memberNames: [INITIAL_EMPLOYEES[0].name],
+        memberNames: appUser?.role === 'employee' ? [appUser.employeeName] : [],
         reason: '辦理研習',
         startLocation: '越港國小',
         destination: '',
@@ -1514,7 +1591,7 @@ try {
     }
   };
 
-const handleApproveLeave = async (reqId) => {
+  const handleApproveLeave = async (reqId) => {
     if (!db) return showDialog('alert', '系統錯誤', '資料庫尚未連線，請重新整理');
     const req = requests.find((r: any) => r.id === reqId) as any;
     if (!req) return;
@@ -1531,8 +1608,6 @@ const handleApproveLeave = async (reqId) => {
     let updatedTakenSang = { ...(emp.takenSang || { d: 0, h: 0 }) };
 
     const totalHours = Number(req.hours) || 0;
-    
-    // 🛠️【超級強化點】：同時相容舊版格式 (type) 與新版格式 (leaveType)
     const currentLeaveType = req.leaveType || req.type || '';
 
     if (currentLeaveType === '特休') {
@@ -1564,7 +1639,6 @@ const handleApproveLeave = async (reqId) => {
     }
 
     try {
-      // 確保核准請假時，同仁的所有基本資料和到職日都不會遺失被抹除
       await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'employees_v2', emp.name), {
         ...emp,
         remainingTe: updatedRemainingTe,
@@ -1647,16 +1721,6 @@ const handleApproveLeave = async (reqId) => {
     }
   };
 
-  const handleVerifyPassword = (e) => {
-    e.preventDefault();
-    if (inputPassword === correctPassword) {
-      setIsUnlocked(true);
-      showDialog('alert', '解鎖成功', '主管端密碼驗證通過！');
-    } else {
-      showDialog('alert', '密碼錯誤', '認證密碼不正確，請重新輸入！');
-    }
-  };
-
   const handleConfirmDelete = async (e) => {
     e.preventDefault();
     if (deletePassword !== correctDeletePassword) {
@@ -1665,10 +1729,10 @@ const handleApproveLeave = async (reqId) => {
     }
     try {
       if (deleteTarget.type === 'leave') {
-        // --- 🌟 新增：刪除前檢查是否已核准，若已核准則退還/校正時數 ---
-        const reqToDel = requests.find((r: any) => r.id === deleteTarget.id) as any;
-        if (reqToDel && reqToDel.status === '核准') {
-          const emp = employees.find(e => e.name === reqToDel.applicant);
+        const req = deleteTarget.reqData;
+        
+        if (req && req.status === '核准') {
+          const emp = employees.find(e => e.name === req.applicant);
           if (emp) {
             let updatedRemainingTe = { ...(emp.remainingTe || { d: 0, h: 0 }) };
             let updatedRemainingBu = { ...(emp.remainingBu || { d: 0, h: 0 }) };
@@ -1676,32 +1740,34 @@ const handleApproveLeave = async (reqId) => {
             let updatedTakenBing = { ...(emp.takenBing || { d: 0, h: 0 }) };
             let updatedTakenSang = { ...(emp.takenSang || { d: 0, h: 0 }) };
 
-            const totalHours = Number(reqToDel.hours) || 0;
-            const leaveType = reqToDel.leaveType || reqToDel.type || '';
+            const totalHours = Number(req.hours) || 0;
+            const currentLeaveType = req.leaveType || req.type || '';
 
-            if (leaveType === '特休') {
+            if (currentLeaveType === '特休') {
               let currTotalHours = updatedRemainingTe.d * 8 + updatedRemainingTe.h;
-              currTotalHours += totalHours; // 退還：加回去
+              currTotalHours += totalHours; 
               updatedRemainingTe = { d: Math.floor(currTotalHours / 8), h: Math.round((currTotalHours % 8) * 10) / 10 };
-            } else if (leaveType === '補休') {
+            } else if (currentLeaveType === '補休') {
               let currTotalHours = updatedRemainingBu.d * 8 + updatedRemainingBu.h;
-              currTotalHours += totalHours; // 退還：加回去
+              currTotalHours += totalHours; 
               updatedRemainingBu = { d: Math.floor(currTotalHours / 8), h: Math.round((currTotalHours % 8) * 10) / 10 };
-            } else if (leaveType === '事假') {
+            } else if (currentLeaveType === '事假') {
               let currTotalHours = updatedTakenShi.d * 8 + updatedTakenShi.h;
-              currTotalHours = Math.max(0, currTotalHours - totalHours); // 校正：扣掉已請
+              currTotalHours -= totalHours; 
+              if(currTotalHours < 0) currTotalHours = 0;
               updatedTakenShi = { d: Math.floor(currTotalHours / 8), h: Math.round((currTotalHours % 8) * 10) / 10 };
-            } else if (leaveType === '病假') {
+            } else if (currentLeaveType === '病假') {
               let currTotalHours = updatedTakenBing.d * 8 + updatedTakenBing.h;
-              currTotalHours = Math.max(0, currTotalHours - totalHours);
+              currTotalHours -= totalHours; 
+              if(currTotalHours < 0) currTotalHours = 0;
               updatedTakenBing = { d: Math.floor(currTotalHours / 8), h: Math.round((currTotalHours % 8) * 10) / 10 };
-            } else if (leaveType === '喪假') {
+            } else if (currentLeaveType === '喪假') {
               let currTotalHours = updatedTakenSang.d * 8 + updatedTakenSang.h;
-              currTotalHours = Math.max(0, currTotalHours - totalHours);
+              currTotalHours -= totalHours; 
+              if(currTotalHours < 0) currTotalHours = 0;
               updatedTakenSang = { d: Math.floor(currTotalHours / 8), h: Math.round((currTotalHours % 8) * 10) / 10 };
             }
 
-            // 寫回我們剛剛建立的 employees_v2 資料庫
             await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'employees_v2', emp.name), {
               ...emp,
               remainingTe: updatedRemainingTe,
@@ -1712,30 +1778,36 @@ const handleApproveLeave = async (reqId) => {
             }, { merge: true });
           }
         }
-        // -----------------------------------------------------------
 
         await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'leaves', deleteTarget.id));
-        showDialog('alert', '成功', '請假單已永久移除！\n(若該單原為核准狀態，系統已自動退還/校正相關時數)');
+        showDialog('alert', '成功', (req && req.status === '核准') ? '請假單已永久移除，且已自動「退還」該筆假單時數給同仁！' : '請假單已永久移除！');
       
       } else if (deleteTarget.type === 'overtime') {
-        // --- 🌟 新增：刪除加班單前，若已核准，則收回當時發放的補休時數 ---
-        const otToDel = overtimeRequests.find((r: any) => r.id === deleteTarget.id) as any;
-        if (otToDel && otToDel.status === '已核准') {
-          for (const pName of otToDel.participants) {
+        const ot = deleteTarget.reqData;
+        
+        if (ot && ot.status === '已核准') {
+          for (const pName of ot.participants) {
             const empData = employees.find(e => e.name === pName);
-            if (!empData) continue;
-            const currentBu = empData.remainingBu || {d: 0, h: 0};
-            let currTotalHours = currentBu.d * 8 + currentBu.h;
-            currTotalHours = Math.max(0, currTotalHours - (Number(otToDel.hours) || 0)); // 收回發放的時數
-            
-            const updatedRemainingBu = { d: Math.floor(currTotalHours / 8), h: Math.round((currTotalHours % 8) * 10) / 10 };
-            await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'employees_v2', pName), { ...empData, remainingBu: updatedRemainingBu }, { merge: true });
+            if (empData) {
+              const currentBu = empData.remainingBu || {d: 0, h: 0};
+              let currTotalHours = currentBu.d * 8 + currentBu.h;
+              currTotalHours -= (Number(ot.hours) || 0);
+              if (currTotalHours < 0) currTotalHours = 0;
+              
+              const updatedRemainingBu = { 
+                d: Math.floor(currTotalHours / 8), 
+                h: Math.round((currTotalHours % 8) * 10) / 10 
+              };
+              await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'employees_v2', pName), {
+                ...empData,
+                remainingBu: updatedRemainingBu
+              }, {merge: true});
+            }
           }
         }
-        // -----------------------------------------------------------
 
         await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'overtimes', deleteTarget.id));
-        showDialog('alert', '成功', '協商加班單已永久移除！\n(若該單原為核准狀態，系統已自動收回同仁補休)');
+        showDialog('alert', '成功', (ot && ot.status === '已核准') ? '加班單已移除，且已同步「收回」同仁溢發的補休時數！' : '協商加班單已永久移除！');
       }
       
       setDeleteTarget(null);
@@ -1900,6 +1972,105 @@ const handleApproveLeave = async (reqId) => {
     showToast('已安全喚醒 A4 獨立 PDF 列印頁面！');
   };
 
+  // ==========================================
+  // 【全新】登入/註冊防護畫面 (未登入者會被擋在這裡)
+  // ==========================================
+  if (!appUser) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-4 font-sans relative overflow-hidden">
+        {/* 背景裝飾 */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute -top-[20%] -left-[10%] w-[50%] h-[50%] rounded-full bg-indigo-600/20 blur-3xl"></div>
+          <div className="absolute top-[60%] -right-[10%] w-[40%] h-[60%] rounded-full bg-emerald-600/20 blur-3xl"></div>
+        </div>
+
+        {notification && (
+          <div className="fixed top-8 z-50 animate-bounce">
+            <div className={`p-4 rounded-xl shadow-lg border flex items-center space-x-3 text-sm font-semibold ${
+              notification.type === 'success' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-rose-50 text-rose-800 border-rose-200'
+            }`}>
+              <CheckCircle className="h-5 w-5 text-emerald-600" />
+              <span>{notification.message}</span>
+            </div>
+          </div>
+        )}
+
+        {/* 系統對話框 */}
+        {dialog.isOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4">
+            <div className="bg-white rounded-xl shadow-2xl max-w-sm w-full overflow-hidden">
+              <div className="px-6 py-4 border-b flex items-center gap-3 bg-indigo-50 text-indigo-900 border-indigo-100">
+                <AlertCircle className="w-5 h-5 text-indigo-600" />
+                <h3 className="font-bold text-lg">{dialog.title}</h3>
+              </div>
+              <div className="px-6 py-5 text-gray-700">
+                <p className="mb-4 whitespace-pre-line text-sm">{dialog.message}</p>
+              </div>
+              <div className="px-6 py-4 bg-gray-50 flex justify-end gap-3 border-t">
+                <button onClick={closeDialog} className="px-5 py-2 text-sm text-white rounded-lg transition-colors bg-indigo-600 hover:bg-indigo-700">
+                  了解
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden relative z-10 animate-fadeIn">
+          <div className="bg-slate-950 p-6 text-center text-white">
+            <CalendarDays className="w-12 h-12 text-indigo-400 mx-auto mb-3 animate-pulse" />
+            <h1 className="text-xl font-bold tracking-wider">數位學習推辦 差勤管理系統</h1>
+            <p className="text-xs text-slate-400 mt-1">請登入您的專屬帳號以繼續操作</p>
+          </div>
+
+          <div className="p-6 sm:p-8">
+            <div className="flex bg-slate-100 p-1 rounded-xl mb-6">
+              <button type="button" onClick={() => setAuthMode('login')} className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition ${authMode === 'login' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>現有帳號登入</button>
+              <button type="button" onClick={() => setAuthMode('register')} className={`flex-1 py-2.5 text-sm font-bold rounded-lg transition ${authMode === 'register' ? 'bg-white text-emerald-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>首次註冊綁定</button>
+            </div>
+
+            <form onSubmit={authMode === 'login' ? handleLoginAuth : handleRegisterAuth} className="space-y-4">
+{authMode === 'register' && (
+                <div className="animate-in slide-in-from-right-4 duration-300">
+                  <label className="block text-xs font-bold text-slate-700 mb-1">綁定身分 (同仁姓名 / 主管)</label>
+                  <select value={authName} onChange={(e) => setAuthName(e.target.value)} required className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500 font-semibold text-slate-700">
+                    <option value="">-- 請選擇您的專屬身分 --</option>
+                    <optgroup label="管理團隊 (具備審核與系統管理最高權限)">
+                      <option value="系統管理員" className="font-bold text-indigo-700">⭐ 系統管理員 (您)</option>
+                      <option value="中心主任(一)" className="font-bold text-indigo-700">⭐ 中心主任 (一)</option>
+                      <option value="中心主任(二)" className="font-bold text-indigo-700">⭐ 中心主任 (二)</option>
+                    </optgroup>
+                    <optgroup label="辦公室同仁 (僅能填寫送出個人單據)">
+                      {INITIAL_EMPLOYEES.map(emp => <option key={emp.name} value={emp.name}>{emp.name} ({emp.group})</option>)}
+                    </optgroup>
+                  </select>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">電子郵件 (辦公室 Mail 或個人信箱)</label>
+                <input type="email" value={authEmail} onChange={(e) => setAuthEmail(e.target.value)} required placeholder="例如：user@ylc.edu.tw" className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 font-semibold" />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">密碼設定</label>
+                <input type="password" value={authPassword} onChange={(e) => setAuthPassword(e.target.value)} required placeholder={authMode === 'register' ? '請設定至少 6 位數密碼' : '請輸入密碼'} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 font-semibold tracking-widest" />
+              </div>
+
+              <button type="submit" className={`w-full py-3.5 rounded-xl text-white font-bold shadow-md transition transform active:scale-95 flex items-center justify-center space-x-2 mt-2 ${authMode === 'login' ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-emerald-600 hover:bg-emerald-700'}`}>
+                {authMode === 'login' ? <Lock className="w-4 h-4" /> : <Users className="w-4 h-4" />}
+                <span>{authMode === 'login' ? '安全登入系統' : '註冊帳號並綁定身分'}</span>
+              </button>
+            </form>
+          </div>
+        </div>
+        
+        <p className="text-slate-500 text-[10px] mt-6 relative z-10 font-medium">
+          © 115學年度 越港國小數位學習推動辦公室 專屬差勤系統
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col font-sans relative">
       
@@ -1960,7 +2131,7 @@ const handleApproveLeave = async (reqId) => {
       )}
 
       {/* 頂部控制欄 */}
-      <header className="bg-slate-950 text-white p-4 shadow flex flex-col sm:flex-row justify-between items-center space-y-2 sm:space-y-0 print:hidden">
+      <header className="bg-slate-950 text-white p-4 shadow flex flex-col sm:flex-row justify-between items-center space-y-3 sm:space-y-0 print:hidden">
         <div className="flex items-center space-x-3">
           <CalendarDays className="h-8 w-8 text-indigo-400 animate-pulse" />
           <div>
@@ -1969,27 +2140,18 @@ const handleApproveLeave = async (reqId) => {
           </div>
         </div>
 
-        {/* 角色權限切換 */}
-        <div className="flex items-center space-x-2 bg-slate-900 p-2 rounded-xl text-sm border border-slate-800">
-          <span className="text-slate-300 font-medium">切換操作同仁:</span>
-          <select 
-            value={currentUser} 
-            onChange={(e) => {
-              setCurrentUser(e.target.value);
-              setFormApplicant(e.target.value === '主管端' ? '' : e.target.value);
-            }}
-            className="bg-slate-800 text-white rounded-lg px-2 py-1 outline-none text-xs border border-slate-700 cursor-pointer font-bold"
-          >
-            <option value="主管端">主管審核端 (簽核授權)</option>
-            {employees.map(e => (
-              <option key={e.name} value={e.name}>{e.name} ({e.group})</option>
-            ))}
-          </select>
-          {currentUser === '主管端' && (
-            <span className="text-xs ml-1">
-              {isUnlocked ? <span className="text-emerald-400 font-bold">🔓 已授權</span> : <span className="text-rose-400 font-bold">🔒 鎖定中</span>}
+        {/* 全新權限帳號顯示與登出按鈕 */}
+        <div className="flex items-center space-x-3 bg-slate-900 p-2 px-4 rounded-xl text-sm border border-slate-800">
+          <div className="flex flex-col items-end">
+            <span className="text-slate-400 font-medium text-[10px] leading-none mb-1">目前登入身分</span>
+            <span className="text-emerald-400 font-bold leading-none tracking-wider">
+              {appUser.employeeName} {appUser.role === 'manager' ? '(主管端)' : ''}
             </span>
-          )}
+          </div>
+          <div className="h-7 w-px bg-slate-700 mx-1"></div>
+          <button onClick={handleLogout} className="px-3 py-1.5 bg-rose-600/20 text-rose-400 border border-rose-600/30 hover:bg-rose-600 hover:text-white rounded-lg text-xs font-bold transition">
+            安全登出
+          </button>
         </div>
       </header>
 
@@ -2013,7 +2175,7 @@ const handleApproveLeave = async (reqId) => {
                 <button onClick={() => setActiveTab('attendance_audit')} className={`w-full text-left px-3 py-2.5 rounded-lg text-sm font-semibold flex items-center space-x-2 relative ${activeTab === 'attendance_audit' ? 'bg-indigo-600 text-white' : 'hover:bg-slate-800'}`}>
                   <CheckCircle className="h-4 w-4" /> <span>主管審核中心</span>
                   {(requests.filter((r: any) => r.status === '待審核').length + overtimeRequests.filter((r: any) => r.status === '待審核').length) > 0 && (
-                    <span className="absolute right-2 top-2.5 bg-rose-500 text-white text-[10px] w-5.5 h-5.5 rounded-full flex items-center justify-center font-bold">
+                    <span className="absolute right-2 top-2.5 bg-rose-500 text-white text-[10px] w-5.5 h-5.5 rounded-full flex items-center justify-center font-bold shadow-sm">
                       {requests.filter((r: any) => r.status === '待審核').length + overtimeRequests.filter((r: any) => r.status === '待審核').length}
                     </span>
                   )}
@@ -2152,9 +2314,12 @@ const handleApproveLeave = async (reqId) => {
                               </button>
                             )}
 
-                            <button onClick={() => setDeleteTarget({ type: 'leave', id: req.id, name: `${req.applicant} 的 ${req.leaveType}` })} className="p-1.5 text-rose-500 hover:bg-rose-50 border border-rose-100 rounded-lg">
-                              <Trash2 className="h-4 w-4" />
-                            </button>
+                            {/* 只有主管，或者申請人自己，才能看到刪除按鈕 */}
+                            {(appUser.role === 'manager' || appUser.employeeName === req.applicant) && (
+                              <button onClick={() => setDeleteTarget({ type: 'leave', id: req.id, name: `${req.applicant} 的 ${req.leaveType}`, reqData: req })} className="p-1.5 text-rose-500 hover:bg-rose-50 border border-rose-100 rounded-lg">
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            )}
                           </div>
                         </div>
                       );
@@ -2293,9 +2458,11 @@ const handleApproveLeave = async (reqId) => {
                               </button>
                             )}
 
-                            <button onClick={() => setDeleteTarget({ type: 'overtime', id: ot.id, name: ot.activityName })} className="p-1.5 text-rose-500 hover:bg-rose-50 border border-rose-100 rounded-lg">
-                              <Trash2 className="h-4 w-4" />
-                            </button>
+                            {(appUser.role === 'manager' || ot.participants?.includes(appUser.employeeName)) && (
+                              <button onClick={() => setDeleteTarget({ type: 'overtime', id: ot.id, name: ot.activityName, reqData: ot })} className="p-1.5 text-rose-500 hover:bg-rose-50 border border-rose-100 rounded-lg">
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            )}
                           </div>
                         </div>
                       );
@@ -2345,10 +2512,16 @@ const handleApproveLeave = async (reqId) => {
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
                         <label className="block font-bold text-slate-700 mb-1">請假同仁 <span className="text-rose-500">*</span></label>
-                        <select value={formApplicant} onChange={(e) => setFormApplicant(e.target.value)} className="w-full p-2.5 bg-white border border-slate-300 rounded-lg font-semibold">
-                          <option value="">-- 請選擇人員 --</option>
-                          {employees.map(e => <option key={e.name} value={e.name}>{e.name} ({e.group})</option>)}
-                        </select>
+                        {appUser.role === 'manager' ? (
+                          <select value={formApplicant} onChange={(e) => setFormApplicant(e.target.value)} className="w-full p-2.5 bg-white border border-slate-300 rounded-lg font-semibold">
+                            <option value="">-- 請選擇人員 --</option>
+                            {employees.map(e => <option key={e.name} value={e.name}>{e.name} ({e.group})</option>)}
+                          </select>
+                        ) : (
+                          <div className="w-full p-2.5 bg-slate-100 border border-slate-300 rounded-lg font-semibold text-slate-600 cursor-not-allowed">
+                            {appUser.employeeName} (已鎖定為您本人身分)
+                          </div>
+                        )}
                       </div>
                       <div>
                         <label className="block font-bold text-slate-700 mb-1">假別選擇 <span className="text-rose-500">*</span></label>
@@ -2564,21 +2737,11 @@ const handleApproveLeave = async (reqId) => {
           {/* ================================================== */}
           {activeTab === 'attendance_audit' && (
             <div className="space-y-6">
-              {(!isUnlocked && currentUser === '主管端') ? (
-                <div className="max-w-md mx-auto bg-white rounded-xl border border-slate-200 shadow p-8 text-center space-y-4 animate-fadeIn">
-                  <Lock className="h-12 w-12 text-slate-400 mx-auto" />
-                  <h3 className="font-bold text-slate-900 text-lg">主管審核身份驗證鎖</h3>
-                  <p className="text-xs text-slate-500">簽核請假核扣時數與核准補休加總，請輸入數辦密碼解鎖權限。</p>
-                  <form onSubmit={handleVerifyPassword} className="space-y-3">
-                    <input type="password" placeholder="請輸入審核驗證密碼 (預設：115)" value={inputPassword} onChange={(e) => setInputPassword(e.target.value)} className="w-full p-2.5 border rounded-lg text-center font-bold tracking-widest outline-none focus:ring-1 focus:ring-indigo-500 text-sm" autoFocus />
-                    <button type="submit" className="w-full bg-slate-900 hover:bg-black text-white font-bold p-2.5 rounded-lg text-xs tracking-wider">身份解鎖</button>
-                  </form>
-                </div>
-              ) : currentUser !== '主管端' ? (
+              {appUser.role !== 'manager' ? (
                 <div className="max-w-md mx-auto bg-white rounded-xl border border-slate-200 p-8 text-center space-y-4 shadow-sm animate-fadeIn">
                   <AlertCircle className="h-12 w-12 text-amber-500 mx-auto animate-bounce" />
-                  <h3 className="font-bold text-slate-900">目前處於同仁自填申報模式</h3>
-                  <p className="text-xs text-slate-500 leading-relaxed">同仁權限僅限於填寫並送出表單。請於右上方帳戶切換為「主管審核端」並解鎖以進行假單審核與核銷操作。</p>
+                  <h3 className="font-bold text-slate-900">非主管帳號無權存取此頁面</h3>
+                  <p className="text-xs text-slate-500 leading-relaxed">您的身分「{appUser.employeeName}」權限僅限於填寫並送出表單，審核區僅限管理員登入後檢視與操作。</p>
                 </div>
               ) : (
                 <div className="space-y-6 animate-fadeIn">
@@ -2586,7 +2749,7 @@ const handleApproveLeave = async (reqId) => {
                   <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
                     <div className="px-6 py-4 bg-amber-600 text-white flex justify-between items-center">
                       <h4 className="font-bold text-sm sm:text-base">假日加班協商 補休授權核准區</h4>
-                      <span className="text-[10px] bg-white/20 px-2 py-0.5 rounded border border-white/30 font-bold">主管解鎖成功 🔓</span>
+                      <span className="text-[10px] bg-white/20 px-2 py-0.5 rounded border border-white/30 font-bold">已安全授權主管身分 🔓</span>
                     </div>
                     <div className="p-6 divide-y divide-slate-100">
                       {overtimeRequests.filter((r: any) => r.status === '待審核').length === 0 ? (
@@ -2617,7 +2780,7 @@ const handleApproveLeave = async (reqId) => {
 
                   {/* 請假審查 */}
                   <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-                    <div className="px-6 py-4 bg-indigo-700 text-white">
+                    <div className="px-6 py-4 bg-indigo-700 text-white flex justify-between items-center">
                       <h4 className="font-bold text-sm sm:text-base">辦公室同仁請假 簽准與核扣區</h4>
                     </div>
                     <div className="p-6 divide-y divide-slate-100">
@@ -2671,12 +2834,15 @@ const handleApproveLeave = async (reqId) => {
                         .sort((a, b) => (ROLE_SORT_ORDER[a.title] || 99) - (ROLE_SORT_ORDER[b.title] || 99))
                         .map(emp => {
                           const isSelected = formData.memberNames.includes(emp.name);
+                          // 限制：一般同仁只能勾選自己，無法代填他人差旅
+                          const isDisabled = appUser.role === 'employee' && emp.name !== appUser.employeeName;
                           return (
                             <button
                               key={emp.name} 
                               type="button" 
+                              disabled={isDisabled}
                               onClick={() => toggleMemberSelection(emp.name)}
-                              className={`flex items-center space-x-2 p-2.5 border rounded-lg cursor-pointer bg-white transition ${isSelected ? 'border-emerald-500 bg-emerald-50 font-bold text-emerald-950 shadow-sm' : 'text-slate-600 hover:bg-slate-50'}`}
+                              className={`flex items-center space-x-2 p-2.5 border rounded-lg transition ${isSelected ? 'border-emerald-500 bg-emerald-50 font-bold text-emerald-950 shadow-sm' : 'text-slate-600 hover:bg-slate-50 bg-white cursor-pointer'} ${isDisabled ? 'opacity-40 cursor-not-allowed bg-slate-100' : ''}`}
                             >
                               {isSelected ? <CheckSquare className="w-4 h-4 text-emerald-600" /> : <Square className="w-4 h-4 text-slate-400" />}
                               <span>{emp.name}</span>
@@ -3119,9 +3285,11 @@ const handleApproveLeave = async (reqId) => {
                                     路徑
                                   </a>
                                 )}
-                                <button onClick={() => handleDeleteTravelClick(rec.id)} className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg border border-transparent transition">
-                                  <Trash2 className="h-4 w-4" />
-                                </button>
+                                {(appUser.role === 'manager' || rec.name === appUser.employeeName) && (
+                                  <button onClick={() => handleDeleteTravelClick(rec.id)} className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg border border-transparent transition">
+                                    <Trash2 className="h-4 w-4" />
+                                  </button>
+                                )}
                               </div>
                             </td>
                           </tr>
@@ -3232,63 +3400,117 @@ const handleApproveLeave = async (reqId) => {
           {/* H. 系統 API 與設定 */}
           {/* ================================================== */}
           {activeTab === 'settings' && (
-            <div className="max-w-xl mx-auto bg-white p-8 rounded-xl border border-slate-200 shadow-sm space-y-4 animate-fadeIn">
-              <div className="text-center space-y-2">
-                <Settings className="h-12 w-12 text-slate-400 mx-auto" />
-                <h3 className="font-bold text-slate-900 text-lg">系統 API 與維護設定</h3>
-                <p className="text-xs text-slate-500 leading-relaxed">設定 <strong>Google Cloud Routes API Key</strong> 以進行地理導航測距。若留空，系統將自動啟動 OpenStreetMap/OSRM 計算。密碼與刪除鎖定密碼為數辦專用。</p>
-              </div>
-              <div className="space-y-3">
-                <input 
-                  type="password" 
-                  value={gmapsKey} 
-                  onChange={(e) => setGmapsKey(e.target.value)} 
-                  placeholder="請輸入 AIzaSy 開頭的 API 密鑰" 
-                  className="w-full p-2.5 bg-slate-50 border rounded-lg text-sm text-center outline-none tracking-widest font-mono focus:ring-2 focus:ring-indigo-500 transition-shadow" 
-                />
-                <button 
-                  onClick={() => {
-                    localStorage.setItem('gmaps_api_key', gmapsKey);
-                    showDialog('alert', '設定成功', 'Google API 金鑰已儲存並成功套用！');
-                  }} 
-                  className="w-full py-2.5 bg-slate-900 hover:bg-black text-white text-xs font-bold rounded-lg transition"
-                >
-                  儲存並套用金鑰
-                </button>
-              </div>
-
-              {/* 👇 這是我們新增的系統維護工具：強制重置同仁天數按鈕 (僅主管解鎖後可見) */}
-              {currentUser === '主管端' && isUnlocked && (
-                <div className="mt-8 pt-6 border-t border-slate-200">
-                  <div className="bg-rose-50 border border-rose-200 p-5 rounded-xl space-y-3">
-                    <div className="flex items-center gap-2 text-rose-700">
-                      <AlertCircle className="w-5 h-5" />
-                      <h4 className="font-bold">測試階段專用：強制校正同仁天數</h4>
-                    </div>
-                    <p className="text-xs text-rose-600 leading-relaxed">
-                      若測試期間發生天數扣除未退還之情形，點擊此按鈕將會讀取系統代碼初始設定並強制覆蓋雲端的所有同仁差勤餘額。
-                    </p>
-                    <button 
-                      onClick={async () => {
-                        if (!db) return;
-                        showDialog('confirm', '警告確認', '確定要將所有同仁的天數強制重置為系統預設值嗎？', async () => {
-                          try {
-                            for (const emp of INITIAL_EMPLOYEES) {
-                              await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'employees_v2', emp.name), emp, { merge: true });
-                            }
-                            showDialog('alert', '重置成功', '所有同仁特休/補休天數已恢復為系統初始預設值！');
-                          } catch (e) {
-                            showDialog('alert', '錯誤', '重置失敗：' + e.message);
-                          }
-                        });
-                      }} 
-                      className="w-full py-2.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-lg transition shadow-sm"
-                    >
-                      強制重置/校正同仁天數
-                    </button>
-                  </div>
+            <div className="max-w-4xl mx-auto space-y-6 animate-fadeIn">
+              <div className="bg-white p-8 rounded-xl border border-slate-200 shadow-sm space-y-4">
+                <div className="text-center space-y-2">
+                  <Settings className="h-12 w-12 text-slate-400 mx-auto" />
+                  <h3 className="font-bold text-slate-900 text-lg">系統 API 與維護設定</h3>
+                  <p className="text-xs text-slate-500 leading-relaxed">設定 <strong>Google Cloud Routes API Key</strong> 以進行地理導航測距。若留空，系統將自動啟動 OpenStreetMap/OSRM 計算。密碼與刪除鎖定密碼為數辦專用。</p>
                 </div>
-              )}
+                <div className="space-y-3 max-w-xl mx-auto">
+                  <input 
+                    type="password" 
+                    value={gmapsKey} 
+                    onChange={(e) => setGmapsKey(e.target.value)} 
+                    placeholder="請輸入 AIzaSy 開頭的 API 密鑰" 
+                    className="w-full p-2.5 bg-slate-50 border rounded-lg text-sm text-center outline-none tracking-widest font-mono focus:ring-2 focus:ring-indigo-500 transition-shadow" 
+                  />
+                  <button 
+                    onClick={() => {
+                      localStorage.setItem('gmaps_api_key', gmapsKey);
+                      showDialog('alert', '設定成功', 'Google API 金鑰已儲存並成功套用！');
+                    }} 
+                    className="w-full py-2.5 bg-slate-900 hover:bg-black text-white text-xs font-bold rounded-lg transition"
+                  >
+                    儲存並套用金鑰
+                  </button>
+                </div>
+
+                {/* 主管專屬設定區 */}
+                {appUser.role === 'manager' && (
+                  <div className="mt-10 pt-8 border-t border-slate-200 grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    
+                    {/* 區塊 1：帳號密碼管理 */}
+                    <div className="bg-slate-50 border border-slate-200 p-5 rounded-xl space-y-4 h-[400px] flex flex-col">
+                      <div className="flex justify-between items-center">
+                        <div className="flex items-center gap-2 text-indigo-700">
+                          <Users className="w-5 h-5" />
+                          <h4 className="font-bold">同仁登入帳號管理</h4>
+                        </div>
+                        <span className="text-[10px] bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded font-bold">目前共 {accounts.length} 組帳號</span>
+                      </div>
+                      <p className="text-xs text-slate-500">可檢視同仁自行註冊之帳密，或移除帳號令其重新綁定。</p>
+                      
+                      <div className="flex-1 overflow-y-auto pr-2 space-y-2">
+                        {accounts.length === 0 ? (
+                          <div className="text-center text-slate-400 text-xs py-8">尚無任何帳號註冊紀錄</div>
+                        ) : (
+                          accounts.map(acc => (
+                            <div key={acc.id} className="bg-white border border-slate-200 rounded-lg p-3 flex justify-between items-center group shadow-sm">
+                              <div>
+                                <div className="font-bold text-slate-800 text-sm flex items-center gap-1.5">
+                                  <span>{acc.employeeName}</span>
+                                  {acc.role === 'manager' && <span className="text-[9px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded">管理員</span>}
+                                </div>
+                                <div className="text-[11px] text-slate-500 mt-1">
+                                  帳號：<span className="text-indigo-600 font-mono select-all">{acc.email}</span><br/>
+                                  密碼：<span className="text-rose-600 font-mono select-all">{acc.password}</span>
+                                </div>
+                              </div>
+                              <button 
+                                onClick={() => {
+                                  showDialog('confirm', '移除帳號確認', `確定要刪除「${acc.employeeName}」的登入權限嗎？\n刪除後該員須重新註冊才能登入系統。`, async () => {
+                                    try {
+                                      await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'system_accounts', acc.id));
+                                      showToast(`已移除 ${acc.employeeName} 的帳號！`);
+                                    } catch (err) {
+                                      showDialog('alert', '錯誤', '刪除失敗：' + err.message);
+                                    }
+                                  });
+                                }}
+                                className="p-2 text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition opacity-0 group-hover:opacity-100"
+                                title="移除此帳號"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+
+                    {/* 區塊 2：強制重置同仁天數按鈕 */}
+                    <div className="bg-rose-50 border border-rose-200 p-5 rounded-xl space-y-3 h-fit">
+                      <div className="flex items-center gap-2 text-rose-700">
+                        <AlertCircle className="w-5 h-5" />
+                        <h4 className="font-bold">測試階段專用：強制校正同仁天數</h4>
+                      </div>
+                      <p className="text-xs text-rose-600 leading-relaxed">
+                        若測試期間發生天數扣除未退還之情形，點擊此按鈕將會讀取系統代碼初始設定並強制覆蓋雲端的所有同仁差勤餘額。
+                      </p>
+                      <button 
+                        onClick={async () => {
+                          if (!db) return;
+                          showDialog('confirm', '警告確認', '確定要將所有同仁的天數強制重置為系統預設值嗎？', async () => {
+                            try {
+                              for (const emp of INITIAL_EMPLOYEES) {
+                                await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'employees_v2', emp.name), emp, { merge: true });
+                              }
+                              showDialog('alert', '重置成功', '所有同仁特休/補休天數已恢復為系統初始預設值！');
+                            } catch (e) {
+                              showDialog('alert', '錯誤', '重置失敗：' + e.message);
+                            }
+                          });
+                        }} 
+                        className="w-full py-2.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-lg transition shadow-sm"
+                      >
+                        強制重置/校正同仁天數
+                      </button>
+                    </div>
+
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
@@ -3362,7 +3584,7 @@ const handleApproveLeave = async (reqId) => {
         </div>
       )}
 
-      {/* ==================== Modal 2. 安全防刪除安全驗證 ==================== */}
+{/* ==================== Modal 2. 安全防刪除安全驗證 ==================== */}
       {deleteTarget && (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden border border-slate-200 p-6 space-y-4">
