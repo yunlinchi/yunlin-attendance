@@ -126,14 +126,14 @@ const INITIAL_EMPLOYEES: Employee[] = [
   { name: '康芳鈞', title: '資訊人員', group: '中區小組', hireDate: '111/06/01', remainingTe: { d: 7, h: 2 }, remainingBu: { d: 0, h: 0 }, takenShi: { d: 0, h: 0 }, takenBing: { d: 0, h: 0 }, takenSang: { d: 0, h: 0 } },
   { name: '戴君櫟', title: '輔導人員', group: '中區小組', hireDate: '111/06/01', remainingTe: { d: 7, h: 0 }, remainingBu: { d: 1, h: 4 }, takenShi: { d: 0, h: 0 }, takenBing: { d: 0, h: 0 }, takenSang: { d: 0, h: 0 } },
   { name: '李佩縜', title: '輔導人員', group: '西區小組', hireDate: '111/07/01', remainingTe: { d: 6, h: 7 }, remainingBu: { d: 0, h: 7 }, takenShi: { d: 0, h: 0 }, takenBing: { d: 0, h: 0 }, takenSang: { d: 0, h: 0 } },
-  { name: '王靖瑜', title: '輔導人員', group: '東區小組', hireDate: '111/07/01', remainingTe: { d: 0, h: 0 }, remainingBu: { d: 0, h: 4 }, takenShi: { d: 5, h: 0 }, takenBing: { d: 0, h: 0 }, takenSang: { d: 0, h: 0 } }, // 修正為補休 0天4時
-  { name: '龔柏逢', title: '資訊人員', group: '北區小組', hireDate: '111/07/05', remainingTe: { d: 6, h: 7 }, remainingBu: { d: 4, h: 6 }, takenShi: { d: 0, h: 0 }, takenBing: { d: 0, h: 0 }, takenSang: { d: 0, h: 0 } }, // 修正為特休 6天7時、補休 4天6時
-  { name: '新進人員(待定)', title: '資訊人員', group: '東區小組', hireDate: '', remainingTe: { d: 0, h: 0 }, remainingBu: { d: 0, h: 0 }, takenShi: { d: 0, h: 0 }, takenBing: { d: 0, h: 0 }, takenSang: { d: 0, h: 0 } }, // 
-  { name: '呂其樺', title: '資訊人員', group: '南區小組', hireDate: '112/08/07', remainingTe: { d: 6, h: 7 }, remainingBu: { d: 1, h: 1 }, takenShi: { d: 0, h: 0 }, takenBing: { d: 0, h: 0 }, takenSang: { d: 0, h: 0 } }, // 修正為補休 1天1時
-  { name: '蒲信宏', title: '資訊人員', group: '西區小組', hireDate: '114/07/01', remainingTe: { d: 3, h: 0 }, remainingBu: { d: 1, h: 7 }, takenShi: { d: 0, h: 0 }, takenBing: { d: 0, h: 0 }, takenSang: { d: 0, h: 0 } }, // 修正為特休 3天0時、補休 1天7時
-  { name: '曾欒閔', title: '行政人員', group: '行政', hireDate: '115/02/01', remainingTe: { d: 0, h: 0 }, remainingBu: { d: 1, h: 1 }, takenShi: { d: 0, h: 0 }, takenBing: { d: 0, h: 0 }, takenSang: { d: 0, h: 0 } },
-  { name: '陳奕瑄', title: '輔導人員', group: '南區小組', hireDate: '115/02/09', remainingTe: { d: 0, h: 0 }, remainingBu: { d: 2, h: 5 }, takenShi: { d: 0, h: 0 }, takenBing: { d: 0, h: 0 }, takenSang: { d: 0, h: 0 } }, // 修正為補休 2天5時
-  { name: '黃銘麒', title: '輔導人員', group: '北區小組', hireDate: '115/02/01', remainingTe: { d: 0, h: 0 }, remainingBu: { d: 3, h: 2 }, takenShi: { d: 0, h: 0 }, takenBing: { d: 0, h: 0 }, takenSang: { d: 0, h: 0 } }
+  { name: '王靖瑜', title: '輔導人員', group: '東區小組', hireDate: '111/07/01', remainingTe: { d: 0, h: 0 }, remainingBu: { d: 0, h: 4 }, takenShi: { d: 5, h: 0 }, takenBing: { d: 0, h: 0 }, takenSang: { d: 0, h: 0 } }, 
+  { name: '曾欒閔', title: '行政人員', group: '行政',     hireDate: '115/02/01', remainingTe: { d: 0, h: 0 }, remainingBu: { d: 1, h: 1 }, takenShi: { d: 0, h: 0 }, takenBing: { d: 0, h: 0 }, takenSang: { d: 0, h: 0 } },
+  { name: '陳奕瑄', title: '輔導人員', group: '南區小組', hireDate: '115/02/09', remainingTe: { d: 0, h: 0 }, remainingBu: { d: 2, h: 5 }, takenShi: { d: 0, h: 0 }, takenBing: { d: 0, h: 0 }, takenSang: { d: 0, h: 0 } }, 
+  { name: '黃銘麒', title: '輔導人員', group: '北區小組', hireDate: '115/02/01', remainingTe: { d: 0, h: 0 }, remainingBu: { d: 3, h: 2 }, takenShi: { d: 0, h: 0 }, takenBing: { d: 0, h: 0 }, takenSang: { d: 0, h: 0 } },
+  { name: '龔柏逢', title: '資訊人員', group: '北區小組', hireDate: '111/07/05', remainingTe: { d: 6, h: 7 }, remainingBu: { d: 4, h: 6 }, takenShi: { d: 0, h: 0 }, takenBing: { d: 0, h: 0 }, takenSang: { d: 0, h: 0 } }, 
+  { name: '新進人員(待定)', title: '資訊人員', group: '東區小組', hireDate: '',   remainingTe: { d: 0, h: 0 }, remainingBu: { d: 0, h: 0 }, takenShi: { d: 0, h: 0 }, takenBing: { d: 0, h: 0 }, takenSang: { d: 0, h: 0 } }, 
+  { name: '呂其樺', title: '資訊人員', group: '南區小組', hireDate: '112/08/07', remainingTe: { d: 6, h: 7 }, remainingBu: { d: 1, h: 1 }, takenShi: { d: 0, h: 0 }, takenBing: { d: 0, h: 0 }, takenSang: { d: 0, h: 0 } }, 
+  { name: '蒲信宏', title: '資訊人員', group: '西區小組', hireDate: '114/07/01', remainingTe: { d: 3, h: 0 }, remainingBu: { d: 1, h: 7 }, takenShi: { d: 0, h: 0 }, takenBing: { d: 0, h: 0 }, takenSang: { d: 0, h: 0 } }
 ];
 
 const ROLE_SORT_ORDER: Record<string, number> = { '行政人員': 1, '資訊人員': 2, '輔導人員': 3 };
@@ -633,60 +633,105 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  useEffect(() => {
-    if (!user || !db) return;
+ useEffect(() => {
+    // 這裡微調：確保 user、db 和 appId 都準備好才執行
+    if (!user || !db || !appId) return;
+    
     const recordsRef = collection(db, 'artifacts', appId, 'public', 'data', 'travel_expenses');
     const unsubscribe = onSnapshot(recordsRef, (snapshot) => {
-      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      // 這裡微調：加上 as any 避免 TypeScript 報錯
+      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() as any }));
+      
+      // 依日期排序（由新到舊）
       data.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
       setRecords(data);
-    }, (error) => showDialog('alert', '連線異常', '無法取得最新差旅資料，請檢查網路。'));
+    }, (error) => {
+      console.error("讀取差旅資料失敗:", error);
+      showDialog('alert', '連線異常', '無法取得最新差旅資料，請檢查網路。');
+    });
+    
     return () => unsubscribe();
-  }, [user]);
-
-useEffect(() => {
-  if (!user || !db) return;
-  const empCol = collection(db, 'artifacts', appId, 'public', 'data', 'employees');
-  const unsub = onSnapshot(empCol, (snapshot) => {
-    if (snapshot.empty) {
-      // 如果雲端是空的，就把最新完美的 INITIAL_EMPLOYEES 寫進去
-      INITIAL_EMPLOYEES.forEach(async (emp) => {
-        await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'employees', emp.name), emp, { merge: true });
-      });
-      setEmployees(INITIAL_EMPLOYEES);
-    } else {
-      // 【修改這裡】不再與 INITIAL_EMPLOYEES 進行容易出錯的雙向合併，完全以雲端資料庫（或您代碼新增進去的）為唯一真理
-      const list = snapshot.docs.map(doc => doc.data() as any);
-      
-      // 按照職稱排序，確保畫面的順序依然漂亮
-      list.sort((a, b) => (ROLE_SORT_ORDER[a.title] || 99) - (ROLE_SORT_ORDER[b.title] || 99));
-      
-      setEmployees(list);
-    }
-  });
-  return () => unsub();
-}, [user]);
+  }, [user, db, appId]); // 這裡微調：補上完整的依賴，確保連線絕對穩定不漏接
 
   useEffect(() => {
-    if (!user || !db) return;
+    if (!user || !db || !appId) return;
+    const empCol = collection(db, 'artifacts', appId, 'public', 'data', 'employees_v2');
+    
+    const unsub = onSnapshot(empCol, async (snapshot) => {
+      if (snapshot.empty) {
+        // 1. 如果雲端完全是空的，把 INITIAL_EMPLOYEES 全灌進去
+        for (const emp of INITIAL_EMPLOYEES) {
+          await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'employees_v2', emp.name), emp, { merge: true });
+        }
+        setEmployees(INITIAL_EMPLOYEES);
+      } else {
+        // 2. 如果雲端已經有資料了
+        const cloudList = snapshot.docs.map(doc => doc.data() as any);
+        
+        // 【修正點 1】：移除了原本會「每次強制覆蓋雲端時數」的 setDoc 迴圈
+        // 【修正點 2】：合併時，強制保護「動態時數」欄位，必須以雲端 (currentData) 最新扣除後的數據為主！
+        const updatedList = cloudList.map(currentData => {
+          const localMatch = INITIAL_EMPLOYEES.find(l => l.name === currentData.name);
+          if (!localMatch) return currentData;
+          
+          return {
+            ...currentData, // 先套用雲端資料
+            ...localMatch,  // 讓本地可控制最新的職稱、組別異動
+            // 但請假時數不能被 localMatch 覆蓋，必須拿回雲端最新的餘額：
+            remainingTe: currentData.remainingTe || localMatch.remainingTe,
+            remainingBu: currentData.remainingBu || localMatch.remainingBu,
+            takenShi: currentData.takenShi || localMatch.takenShi,
+            takenBing: currentData.takenBing || localMatch.takenBing,
+            takenSang: currentData.takenSang || localMatch.takenSang,
+          };
+        });
+
+        // 3. 若有新進人員在代碼中新增，但雲端還沒有，就自動把它補進去
+        const missingEmps = INITIAL_EMPLOYEES.filter(l => !cloudList.some(c => c.name === l.name));
+        for (const emp of missingEmps) {
+          await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'employees_v2', emp.name), emp, { merge: true });
+          updatedList.push(emp);
+        }
+        
+        // 按照職稱排序，確保畫面的順序依然漂亮
+        updatedList.sort((a, b) => (ROLE_SORT_ORDER[a.title] || 99) - (ROLE_SORT_ORDER[b.title] || 99));
+        
+        setEmployees(updatedList);
+      }
+    }, (error) => {
+      console.error("讀取同仁差勤資料失敗:", error);
+    });
+
+    return () => unsub();
+  }, [user, db, appId]);
+
+// 1. 監聽請假紀錄 (已優化連線依賴與型別)
+  useEffect(() => {
+    if (!user || !db || !appId) return;
     const leavesCol = collection(db, 'artifacts', appId, 'public', 'data', 'leaves');
     const unsub = onSnapshot(leavesCol, (snapshot) => {
-      const list = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+      const list = snapshot.docs.map(d => ({ id: d.id, ...d.data() as any }));
       setRequests(list);
+    }, (error) => {
+      console.error("讀取請假紀錄失敗:", error);
     });
     return () => unsub();
-  }, [user]);
+  }, [user, db, appId]); // 修正點：補齊完整的依賴，確保網頁切換時連線絕不中斷
 
+  // 2. 監聽加班紀錄 (已優化連線依賴與型別)
   useEffect(() => {
-    if (!user || !db) return;
+    if (!user || !db || !appId) return;
     const overtimesCol = collection(db, 'artifacts', appId, 'public', 'data', 'overtimes');
     const unsub = onSnapshot(overtimesCol, (snapshot) => {
-      const list = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+      const list = snapshot.docs.map(d => ({ id: d.id, ...d.data() as any }));
       setOvertimeRequests(list);
+    }, (error) => {
+      console.error("讀取加班紀錄失敗:", error);
     });
     return () => unsub();
-  }, [user]);
+  }, [user, db, appId]); // 修正點：補齊完整的依賴，確保加班資料即時更新
 
+  // 3. 監聽目前切換的使用者角色 (此段原邏輯完全正確，維持原樣)
   useEffect(() => {
     if (currentUser !== '主管端') {
       setIsUnlocked(false);
@@ -1469,7 +1514,7 @@ try {
     }
   };
 
-  const handleApproveLeave = async (reqId) => {
+const handleApproveLeave = async (reqId) => {
     if (!db) return showDialog('alert', '系統錯誤', '資料庫尚未連線，請重新整理');
     const req = requests.find((r: any) => r.id === reqId) as any;
     if (!req) return;
@@ -1487,36 +1532,41 @@ try {
 
     const totalHours = Number(req.hours) || 0;
     
-    if (req.leaveType === '特休') {
+    // 🛠️【超級強化點】：同時相容舊版格式 (type) 與新版格式 (leaveType)
+    const currentLeaveType = req.leaveType || req.type || '';
+
+    if (currentLeaveType === '特休') {
       let currTotalHours = updatedRemainingTe.d * 8 + updatedRemainingTe.h;
       if (currTotalHours < totalHours) {
         return showDialog('alert', '錯誤', '核准失敗！該同仁賸餘特休時數不足。');
       }
       currTotalHours -= totalHours;
       updatedRemainingTe = { d: Math.floor(currTotalHours / 8), h: Math.round((currTotalHours % 8) * 10) / 10 };
-    } else if (req.leaveType === '補休') {
+    } else if (currentLeaveType === '補休') {
       let currTotalHours = updatedRemainingBu.d * 8 + updatedRemainingBu.h;
       if (currTotalHours < totalHours) {
         return showDialog('alert', '錯誤', '核准失敗！該同仁賸餘補休時數不足。');
       }
       currTotalHours -= totalHours;
       updatedRemainingBu = { d: Math.floor(currTotalHours / 8), h: Math.round((currTotalHours % 8) * 10) / 10 };
-    } else if (req.leaveType === '事假') {
+    } else if (currentLeaveType === '事假') {
       let currTotalHours = updatedTakenShi.d * 8 + updatedTakenShi.h;
       currTotalHours += totalHours;
       updatedTakenShi = { d: Math.floor(currTotalHours / 8), h: Math.round((currTotalHours % 8) * 10) / 10 };
-    } else if (req.leaveType === '病假') {
+    } else if (currentLeaveType === '病假') {
       let currTotalHours = updatedTakenBing.d * 8 + updatedTakenBing.h;
       currTotalHours += totalHours;
       updatedTakenBing = { d: Math.floor(currTotalHours / 8), h: Math.round((currTotalHours % 8) * 10) / 10 };
-    } else if (req.leaveType === '喪假') {
+    } else if (currentLeaveType === '喪假') {
       let currTotalHours = updatedTakenSang.d * 8 + updatedTakenSang.h;
       currTotalHours += totalHours;
       updatedTakenSang = { d: Math.floor(currTotalHours / 8), h: Math.round((currTotalHours % 8) * 10) / 10 };
     }
 
     try {
-      await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'employees', emp.name), {
+      // 確保核准請假時，同仁的所有基本資料和到職日都不會遺失被抹除
+      await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'employees_v2', emp.name), {
+        ...emp,
         remainingTe: updatedRemainingTe,
         remainingBu: updatedRemainingBu,
         takenShi: updatedTakenShi,
@@ -1525,7 +1575,7 @@ try {
       }, { merge: true });
       
       await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'leaves', req.id), { status: '核准' }, { merge: true });
-      showDialog('alert', '核准成功', `已成功核准 ${req.applicant} 的 ${req.leaveType}！其時數已自動更新。`);
+      showDialog('alert', '核准成功', `已成功核准 ${req.applicant} 的 ${currentLeaveType}！其時數已自動更新。`);
     } catch (e) {
       console.error(e);
       showDialog('alert', '錯誤', '核准更新雲端失敗：' + e.message);
@@ -1536,14 +1586,26 @@ try {
     if (!db) return showDialog('alert', '系統錯誤', '資料庫尚未連線，請重新整理');
     try {
       for (const pName of ot.participants) {
-        const empData = employees.find(e => e.name === pName) || INITIAL_EMPLOYEES.find(e => e.name === pName) || { remainingBu: {d: 0, h: 0} };
-        const currentBu = empData.remainingBu || {d: 0, h: 0};
+        const empData = employees.find(e => e.name === pName) || INITIAL_EMPLOYEES.find(e => e.name === pName);
+        if (!empData) continue; 
         
+        const currentBu = empData.remainingBu || {d: 0, h: 0};
         let currTotalHours = currentBu.d * 8 + currentBu.h;
         currTotalHours += (Number(ot.hours) || 0);
         
-        const updatedRemainingBu = { d: Math.floor(currTotalHours / 8), h: Math.round((currTotalHours % 8) * 10) / 10 };
-        await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'employees', pName), { remainingBu: updatedRemainingBu }, { merge: true });
+        const updatedRemainingBu = { 
+          d: Math.floor(currTotalHours / 8), 
+          h: Math.round((currTotalHours % 8) * 10) / 10 
+        };
+
+        await setDoc(
+          doc(db, 'artifacts', appId, 'public', 'data', 'employees_v2', pName), 
+          { 
+            ...empData,
+            remainingBu: updatedRemainingBu 
+          }, 
+          { merge: true }
+        );
       }
       
       await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'overtimes', ot.id), { status: '已核准' }, { merge: true });
@@ -1603,12 +1665,79 @@ try {
     }
     try {
       if (deleteTarget.type === 'leave') {
+        // --- 🌟 新增：刪除前檢查是否已核准，若已核准則退還/校正時數 ---
+        const reqToDel = requests.find((r: any) => r.id === deleteTarget.id) as any;
+        if (reqToDel && reqToDel.status === '核准') {
+          const emp = employees.find(e => e.name === reqToDel.applicant);
+          if (emp) {
+            let updatedRemainingTe = { ...(emp.remainingTe || { d: 0, h: 0 }) };
+            let updatedRemainingBu = { ...(emp.remainingBu || { d: 0, h: 0 }) };
+            let updatedTakenShi = { ...(emp.takenShi || { d: 0, h: 0 }) };
+            let updatedTakenBing = { ...(emp.takenBing || { d: 0, h: 0 }) };
+            let updatedTakenSang = { ...(emp.takenSang || { d: 0, h: 0 }) };
+
+            const totalHours = Number(reqToDel.hours) || 0;
+            const leaveType = reqToDel.leaveType || reqToDel.type || '';
+
+            if (leaveType === '特休') {
+              let currTotalHours = updatedRemainingTe.d * 8 + updatedRemainingTe.h;
+              currTotalHours += totalHours; // 退還：加回去
+              updatedRemainingTe = { d: Math.floor(currTotalHours / 8), h: Math.round((currTotalHours % 8) * 10) / 10 };
+            } else if (leaveType === '補休') {
+              let currTotalHours = updatedRemainingBu.d * 8 + updatedRemainingBu.h;
+              currTotalHours += totalHours; // 退還：加回去
+              updatedRemainingBu = { d: Math.floor(currTotalHours / 8), h: Math.round((currTotalHours % 8) * 10) / 10 };
+            } else if (leaveType === '事假') {
+              let currTotalHours = updatedTakenShi.d * 8 + updatedTakenShi.h;
+              currTotalHours = Math.max(0, currTotalHours - totalHours); // 校正：扣掉已請
+              updatedTakenShi = { d: Math.floor(currTotalHours / 8), h: Math.round((currTotalHours % 8) * 10) / 10 };
+            } else if (leaveType === '病假') {
+              let currTotalHours = updatedTakenBing.d * 8 + updatedTakenBing.h;
+              currTotalHours = Math.max(0, currTotalHours - totalHours);
+              updatedTakenBing = { d: Math.floor(currTotalHours / 8), h: Math.round((currTotalHours % 8) * 10) / 10 };
+            } else if (leaveType === '喪假') {
+              let currTotalHours = updatedTakenSang.d * 8 + updatedTakenSang.h;
+              currTotalHours = Math.max(0, currTotalHours - totalHours);
+              updatedTakenSang = { d: Math.floor(currTotalHours / 8), h: Math.round((currTotalHours % 8) * 10) / 10 };
+            }
+
+            // 寫回我們剛剛建立的 employees_v2 資料庫
+            await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'employees_v2', emp.name), {
+              ...emp,
+              remainingTe: updatedRemainingTe,
+              remainingBu: updatedRemainingBu,
+              takenShi: updatedTakenShi,
+              takenBing: updatedTakenBing,
+              takenSang: updatedTakenSang
+            }, { merge: true });
+          }
+        }
+        // -----------------------------------------------------------
+
         await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'leaves', deleteTarget.id));
-        showDialog('alert', '成功', '請假單已永久移除！');
+        showDialog('alert', '成功', '請假單已永久移除！\n(若該單原為核准狀態，系統已自動退還/校正相關時數)');
+      
       } else if (deleteTarget.type === 'overtime') {
+        // --- 🌟 新增：刪除加班單前，若已核准，則收回當時發放的補休時數 ---
+        const otToDel = overtimeRequests.find((r: any) => r.id === deleteTarget.id) as any;
+        if (otToDel && otToDel.status === '已核准') {
+          for (const pName of otToDel.participants) {
+            const empData = employees.find(e => e.name === pName);
+            if (!empData) continue;
+            const currentBu = empData.remainingBu || {d: 0, h: 0};
+            let currTotalHours = currentBu.d * 8 + currentBu.h;
+            currTotalHours = Math.max(0, currTotalHours - (Number(otToDel.hours) || 0)); // 收回發放的時數
+            
+            const updatedRemainingBu = { d: Math.floor(currTotalHours / 8), h: Math.round((currTotalHours % 8) * 10) / 10 };
+            await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'employees_v2', pName), { ...empData, remainingBu: updatedRemainingBu }, { merge: true });
+          }
+        }
+        // -----------------------------------------------------------
+
         await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'overtimes', deleteTarget.id));
-        showDialog('alert', '成功', '協商加班單已永久移除！');
+        showDialog('alert', '成功', '協商加班單已永久移除！\n(若該單原為核准狀態，系統已自動收回同仁補休)');
       }
+      
       setDeleteTarget(null);
       setDeletePassword('');
     } catch (e) {
@@ -3127,6 +3256,39 @@ try {
                   儲存並套用金鑰
                 </button>
               </div>
+
+              {/* 👇 這是我們新增的系統維護工具：強制重置同仁天數按鈕 (僅主管解鎖後可見) */}
+              {currentUser === '主管端' && isUnlocked && (
+                <div className="mt-8 pt-6 border-t border-slate-200">
+                  <div className="bg-rose-50 border border-rose-200 p-5 rounded-xl space-y-3">
+                    <div className="flex items-center gap-2 text-rose-700">
+                      <AlertCircle className="w-5 h-5" />
+                      <h4 className="font-bold">測試階段專用：強制校正同仁天數</h4>
+                    </div>
+                    <p className="text-xs text-rose-600 leading-relaxed">
+                      若測試期間發生天數扣除未退還之情形，點擊此按鈕將會讀取系統代碼初始設定並強制覆蓋雲端的所有同仁差勤餘額。
+                    </p>
+                    <button 
+                      onClick={async () => {
+                        if (!db) return;
+                        showDialog('confirm', '警告確認', '確定要將所有同仁的天數強制重置為系統預設值嗎？', async () => {
+                          try {
+                            for (const emp of INITIAL_EMPLOYEES) {
+                              await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'employees_v2', emp.name), emp, { merge: true });
+                            }
+                            showDialog('alert', '重置成功', '所有同仁特休/補休天數已恢復為系統初始預設值！');
+                          } catch (e) {
+                            showDialog('alert', '錯誤', '重置失敗：' + e.message);
+                          }
+                        });
+                      }} 
+                      className="w-full py-2.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-lg transition shadow-sm"
+                    >
+                      強制重置/校正同仁天數
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
