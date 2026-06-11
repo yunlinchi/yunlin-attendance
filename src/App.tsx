@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-// ... 後續原本的程式碼
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'firebase/auth';
-import { getFirestore, collection, onSnapshot, addDoc, deleteDoc, doc, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore';
+import { getFirestore, collection, onSnapshot, addDoc, deleteDoc, doc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { 
   MapPin, 
   Calculator, 
@@ -41,7 +40,7 @@ import {
 import XLSX from 'xlsx-js-style';
 
 // =========================================================================
-// 1. 全局環境變數與外部擴充宣告 (徹底解決 Cannot find name 錯誤)
+// 1. 全局環境變數與外部擴充宣告
 // =========================================================================
 declare const __firebase_config: string | undefined;
 declare const __app_id: string | undefined;
@@ -52,39 +51,35 @@ interface Window {
 }
 
 // =========================================================================
-// 2. 資料結構與型別定義 (TypeScript 核心規格表)
+// 2. 資料結構與型別定義
 // =========================================================================
-
-// 差旅紀錄的資料結構
 interface TravelRecord {
   id: string;
   name: string;
   group: string;
   title: string;
-  status: string;              // 狀態，例如：'待審核'、'已核准'、'已駁回'
-  date: string;                // 開始日期 (YYYY-MM-DD)
-  isMultiDay?: boolean;        // 是否為多日
-  endDate?: string;            // 結束日期
-  days?: number;               // 天數
-  destination: string;         // 目的地
-  reason: string;              // 出差事由
-  transportMode: string;       // 交通工具
-  hsrStation?: string;         // 高鐵站
-  totalDistance?: number;      // 總里程
-  duration?: number;           // 時數
-  transportFee: number;        // 交通費
-  accommodationFee: number;    // 住宿費
-  mealFee: number;             // 膳雜費
-  totalFee: number;            // 總費用
+  status: string;              
+  date: string;                
+  isMultiDay?: boolean;        
+  endDate?: string;            
+  days?: number;               
+  destination: string;         
+  reason: string;              
+  transportMode: string;       
+  hsrStation?: string;         
+  totalDistance?: number;      
+  duration?: number;           
+  transportFee: number;        
+  accommodationFee: number;    
+  mealFee: number;             
+  totalFee: number;            
 }
 
-// 假別/結餘時數結構
 interface LeaveBalance {
-  d: number; // 天
-  h: number; // 時
+  d: number; 
+  h: number; 
 }
 
-// 同仁基本資料與特休結構
 interface Employee {
   name: string;
   title: string;
@@ -97,16 +92,13 @@ interface Employee {
   takenSang: LeaveBalance;
 }
 
-// 下拉選單群組限定型別
 type GroupType = '全部' | '行政人員' | '資訊人員' | '輔導人員' | string;
 
-
 // =========================================================================
-// 3. Firebase 資料庫初始化與安全連線設定 (明確指定 any 避免隱式型別錯誤)
+// 3. Firebase 資料庫初始化與安全連線設定
 // =========================================================================
 let app: any, auth: any, db: any, appId: string;
 try {
-  // 1. 改用 window 物件來讀取全域變數，這樣 TypeScript 就不會報錯中斷
   const globalConfig = (window as any).__firebase_config;
   
   const firebaseConfig = globalConfig ? JSON.parse(globalConfig) : {
@@ -122,19 +114,14 @@ try {
   app = initializeApp(firebaseConfig);
   auth = getAuth(app);
   db = getFirestore(app);
-  
-  // 2. 同理，改用 window 讀取 appId，若無則套用後方的預設名稱
   appId = (window as any).__app_id || 'travel-expense-app';
 } catch (e) {
   console.error("Firebase 連線初始化失敗:", e);
 }
 
-
 // =========================================================================
-// 4. 靜態設定資料 (加上型別限制，防止物件 Key 的對應報錯)
+// 4. 靜態設定資料
 // =========================================================================
-
-// 預設之 115 年度同仁留用與出勤結餘資料
 const INITIAL_EMPLOYEES: Employee[] = [
   { name: '康芳鈞', title: '資訊人員', group: '中區小組', hireDate: '111/06/01', remainingTe: { d: 7, h: 2 }, remainingBu: { d: 0, h: 0 }, takenShi: { d: 0, h: 0 }, takenBing: { d: 0, h: 0 }, takenSang: { d: 0, h: 0 } },
   { name: '戴君櫟', title: '輔導人員', group: '中區小組', hireDate: '111/06/01', remainingTe: { d: 7, h: 0 }, remainingBu: { d: 1, h: 4 }, takenShi: { d: 0, h: 0 }, takenBing: { d: 0, h: 0 }, takenSang: { d: 0, h: 0 } },
@@ -149,12 +136,7 @@ const INITIAL_EMPLOYEES: Employee[] = [
   { name: '黃銘麒', title: '輔導人員', group: '北區小組', hireDate: '115/02/01', remainingTe: { d: 0, h: 0 }, remainingBu: { d: 3, h: 2 }, takenShi: { d: 0, h: 0 }, takenBing: { d: 0, h: 0 }, takenSang: { d: 0, h: 0 } }
 ];
 
-// 💡 加上 Record<string, number> 解決 TS7053 的對應索引報錯
-const ROLE_SORT_ORDER: Record<string, number> = {
-  '行政人員': 1,
-  '資訊人員': 2,
-  '輔導人員': 3
-};
+const ROLE_SORT_ORDER: Record<string, number> = { '行政人員': 1, '資訊人員': 2, '輔導人員': 3 };
 
 const COMMON_LOCATIONS = [
   { name: '越港國小', address: '雲林縣土庫鎮林森路120號' },
@@ -167,7 +149,6 @@ const COMMON_LOCATIONS = [
   { name: '雲林國小', address: '雲林縣斗六市莊敬路100號' }
 ];
 
-// 💡 加上 Record<string, number> 解決高鐵站動態查詢時的型別錯誤
 const HSR_FARES_FROM_YUNLIN: Record<string, number> = {
   '南港': 970, '台北': 930, '板橋': 900, '桃園': 780,
   '新竹': 640, '苗栗': 500, '台中': 230, '彰化': 110,
@@ -189,18 +170,15 @@ export default function App() {
   const [notification, setNotification] = useState(null);
   const [applyType, setApplyType] = useState('leave'); 
 
-  // 請假與加班狀態
   const [employees, setEmployees] = useState(INITIAL_EMPLOYEES);
   const [requests, setRequests] = useState([]);
   const [overtimeRequests, setOvertimeRequests] = useState([]);
   const [syncedRequests, setSyncedRequests] = useState([]);
 
-  // 主管解鎖機制
   const [inputPassword, setInputPassword] = useState('');
   const [isUnlocked, setIsUnlocked] = useState(false);
   const correctPassword = "115"; 
 
-  // 請假篩選
   const [leaveSearch, setLeaveSearch] = useState('');
   const [leaveFilterYear, setLeaveFilterYear] = useState('全部');
   const [leaveFilterMonth, setLeaveFilterMonth] = useState('全部');
@@ -208,14 +186,12 @@ export default function App() {
   const [leavePage, setLeavePage] = useState(1);
   const recordsPerPage = 10;
 
-  // 加班篩選
   const [otSearch, setOtSearch] = useState('');
   const [otFilterYear, setOtFilterYear] = useState('全部');
   const [otFilterMonth, setOtFilterMonth] = useState('全部');
   const [otFilterStatus, setOtFilterStatus] = useState('全部');
   const [otPage, setOtPage] = useState(1);
 
-  // 請假表單狀態
   const [formApplicant, setFormApplicant] = useState('');
   const [formLeaveType, setFormLeaveType] = useState('特休');
   const [formStartDate, setFormStartDate] = useState(new Date().toISOString().split('T')[0]);
@@ -228,7 +204,6 @@ export default function App() {
   const [formReason, setFormReason] = useState('');
   const [formIsBusinessTrip, setFormIsBusinessTrip] = useState(false);
 
-  // 加班表單狀態
   const [otDate, setOtDate] = useState(new Date().toISOString().split('T')[0]);
   const [otStartTime, setOtStartTime] = useState('08:00');
   const [otEndTime, setOtEndTime] = useState('17:00');
@@ -239,7 +214,6 @@ export default function App() {
   const [showAgreementModal, setShowAgreementModal] = useState(false);
   const [selectedOtRequest, setSelectedOtRequest] = useState(null);
 
-  // 差旅狀態
   const [records, setRecords] = useState([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [gmapsKey, setGmapsKey] = useState(() => localStorage.getItem('gmaps_api_key') || '');
@@ -292,7 +266,6 @@ export default function App() {
   const [deletePassword, setDeletePassword] = useState('');
   const correctDeletePassword = "056341014";
 
-  // Toast / Dialog 提示系統
   const showToast = (message, type = 'success') => {
     setNotification({ message, type });
     setTimeout(() => setNotification(null), 4000);
@@ -303,7 +276,6 @@ export default function App() {
   };
   const closeDialog = () => setDialog(p => ({ ...p, isOpen: false }));
 
-  // 日期與時間格式化輔助函數
   const getWeekdayText = (dateStr) => {
     if (!dateStr) return '';
     const parts = dateStr.split('-');
@@ -328,7 +300,6 @@ export default function App() {
     return dateStr;
   };
 
-  // 年資及特休估算 (符合您的合約累積天數與年資級距)
   const calculateSeniorityInfo = (hireDateStr) => {
     if (!hireDateStr) return { years: 0, months: 0, text: '無 (已離職/待定)', standardTe: 0, nextMilestone: '人員待定中' };
     const parts = hireDateStr.split('/');
@@ -338,7 +309,7 @@ export default function App() {
     const hireMonth = parseInt(parts[1]) - 1;
     const hireDay = parseInt(parts[2]);
     const hireDate = new Date(hireYear, hireMonth, hireDay);
-    const today = new Date(2026, 5, 9); // 當前專案鎖定民國115年6月基準點
+    const today = new Date(2026, 5, 9); 
     
     let diffMs = today.getTime() - hireDate.getTime();
     if (diffMs < 0) diffMs = 0;
@@ -440,7 +411,6 @@ export default function App() {
     return `中華民國${formatSingle(minD)}至${formatSingle(maxD)}`;
   }
 
-  // 會計旅費計算模組 (完美維持 4、5、6 公里進位邏輯)
   const calculateFees = (data) => {
     let transportFee = 0;
     let mealFee = 0;
@@ -587,7 +557,6 @@ export default function App() {
     return expandedData;
   };
 
-  // Google Calendar 串接 API 服務產生器
   const getGoogleCalendarUrl = (req) => {
     const convertToWestern = (dateStr) => {
       if (!dateStr) return '';
@@ -620,7 +589,6 @@ export default function App() {
     showToast('已安全開啟 Google 行事曆新增頁面！');
   };
 
-  // 取得與試算路徑距離
   const getTravelDistance = async (start, dest) => {
     if (!gmapsKey) return null;
     const startAddr = COMMON_LOCATIONS.find(l => l.name === start)?.address || start;
@@ -665,7 +633,6 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  // 差旅紀錄訂閱
   useEffect(() => {
     if (!user || !db) return;
     const recordsRef = collection(db, 'artifacts', appId, 'public', 'data', 'travel_expenses');
@@ -677,24 +644,38 @@ export default function App() {
     return () => unsubscribe();
   }, [user]);
 
-  // 同仁資料訂閱
   useEffect(() => {
     if (!user || !db) return;
     const empCol = collection(db, 'artifacts', appId, 'public', 'data', 'employees');
     const unsub = onSnapshot(empCol, (snapshot) => {
       if (snapshot.empty) {
         INITIAL_EMPLOYEES.forEach(async (emp) => {
-          await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'employees', emp.name), emp);
+          await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'employees', emp.name), emp, { merge: true });
         });
+        setEmployees(INITIAL_EMPLOYEES);
       } else {
         const list = snapshot.docs.map(doc => doc.data() as any);
-        setEmployees(list);
+        const mergedEmployees = INITIAL_EMPLOYEES.map(initEmp => {
+          const found = list.find((e: any) => e.name === initEmp.name);
+          if (found) {
+            return {
+              ...initEmp,
+              ...found,
+              remainingTe: found.remainingTe || initEmp.remainingTe,
+              remainingBu: found.remainingBu || initEmp.remainingBu,
+              takenShi: found.takenShi || initEmp.takenShi,
+              takenBing: found.takenBing || initEmp.takenBing,
+              takenSang: found.takenSang || initEmp.takenSang,
+            };
+          }
+          return initEmp;
+        });
+        setEmployees(mergedEmployees);
       }
     });
     return () => unsub();
   }, [user]);
 
-  // 請假紀錄訂閱
   useEffect(() => {
     if (!user || !db) return;
     const leavesCol = collection(db, 'artifacts', appId, 'public', 'data', 'leaves');
@@ -705,7 +686,6 @@ export default function App() {
     return () => unsub();
   }, [user]);
 
-  // 加班紀錄訂閱
   useEffect(() => {
     if (!user || !db) return;
     const overtimesCol = collection(db, 'artifacts', appId, 'public', 'data', 'overtimes');
@@ -815,7 +795,6 @@ export default function App() {
 
   const { transportFee, mealFee, accommodationFee: currentAccomFee, totalFee } = useMemo(() => calculateFees(formData), [formData]);
 
-  // 估算加班時數
   useEffect(() => {
     if (otStartTime && otEndTime) {
       const [startH, startM] = otStartTime.split(':').map(Number);
@@ -829,7 +808,6 @@ export default function App() {
     }
   }, [otStartTime, otEndTime]);
 
-  // 出差地點及高鐵跨縣市判斷
   useEffect(() => {
     const dest = formData.destination;
     if (dest) {
@@ -845,9 +823,6 @@ export default function App() {
     if (formData.transportMode === 'hsr') setFormData(prev => ({ ...prev, isOutCounty: true }));
   }, [formData.transportMode, formData.hsrStation]);
 
-
-
-  // 差旅表單輸入處理
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
     setFormData(prev => {
@@ -873,7 +848,6 @@ export default function App() {
     else setOtParticipants([...otParticipants, name]);
   };
 
-  // Google Maps / OSM 導航距離抓取
   const handleAutoFetchDistance = async () => {
     if (!formData.destination.trim()) return showDialog('alert', '提示', '請先填寫出差地點！\n建議輸入明確名稱或地址。');
     setIsProcessing(true);
@@ -947,13 +921,13 @@ export default function App() {
     }
   };
 
-  // 請假送出
   const handleApplyLeave = async (e) => {
     e.preventDefault();
-    if (!user || !db) return;
+    if (!db) return showDialog('alert', '系統錯誤', '資料庫尚未連線，請重新整理頁面。');
+    if (!user) return showDialog('alert', '權限錯誤', '系統尚未完成身份驗證，請稍候或重新整理頁面。');
     if (!formApplicant) return showDialog('alert', '提示', '請選擇請假人！');
     if (!formAgent) return showDialog('alert', '提示', '請設定代理人！');
-    if (formHours <= 0) return showDialog('alert', '提示', '請假時數不正確！');
+    if (isNaN(formHours) || formHours <= 0) return showDialog('alert', '提示', '請假時數不正確！');
 
     try {
       const leavesCol = collection(db, 'artifacts', appId, 'public', 'data', 'leaves');
@@ -970,22 +944,23 @@ export default function App() {
         reason: formReason,
         isBusinessTrip: formLeaveType === '公假' ? formIsBusinessTrip : false,
         status: '待審核',
-        createdAt: serverTimestamp()
+        createdAt: new Date().toISOString()
       });
       showDialog('alert', '送出成功', '請假申請已送出，請靜候主管簽核！');
-      // 重設表單
       setFormReason('');
     } catch (err) {
-      showDialog('alert', '錯誤', '送出失敗！');
+      console.error(err);
+      showDialog('alert', '錯誤', '送出失敗！請檢查網路狀態：' + err.message);
     }
   };
 
-  // 加班申報送出
   const handleApplyOvertime = async (e) => {
     e.preventDefault();
-    if (!user || !db) return;
+    if (!db) return showDialog('alert', '系統錯誤', '資料庫尚未連線，請重新整理頁面。');
+    if (!user) return showDialog('alert', '權限錯誤', '系統尚未完成身份驗證，請稍候或重新整理頁面。');
     if (otParticipants.length === 0) return showDialog('alert', '提示', '請至少勾選一位加班同仁！');
     if (!otActivityName.trim()) return showDialog('alert', '提示', '請填寫活動研習名稱！');
+    if (isNaN(otHours) || otHours <= 0) return showDialog('alert', '提示', '加班時段設定有誤，時數不得為零或負數！');
 
     try {
       const overtimesCol = collection(db, 'artifacts', appId, 'public', 'data', 'overtimes');
@@ -1003,16 +978,17 @@ export default function App() {
       setOtParticipants([]);
       setOtActivityName('');
     } catch (err) {
-      showDialog('alert', '錯誤', '申報儲存失敗。');
+      console.error(err);
+      showDialog('alert', '錯誤', '申報儲存失敗：' + err.message);
     }
   };
 
-  // 差旅儲存
   const handleCalculateTravel = async (e) => {
     if (e) e.preventDefault();
     if (formData.memberNames.length === 0) return showDialog('alert', '錯誤', '請至少選擇一位出差同仁。');
     if (!formData.destination.trim()) return showDialog('alert', '錯誤', '請選擇或填寫目的地。');
-    
+    if (!db) return showDialog('alert', '錯誤', '資料庫未連線');
+
     setIsProcessing(true);
     let finalDist = parseFloat(formData.distance);
     if (isNaN(finalDist) && formData.transportMode !== 'hsr') {
@@ -1027,16 +1003,18 @@ export default function App() {
       }
     }
 
-    try {
+try {
       const fees = calculateFees(formData);
       const recordsRef = collection(db, 'artifacts', appId, 'public', 'data', 'travel_expenses');
       
       await Promise.all(formData.memberNames.map(async (memberName) => {
-        const memberInfo = employees.find(m => m.name === memberName);
+        // 【要修改的地方】加入 || { name: memberName, title: '未知', group: '未知' } 作為防呆預設值
+        const memberInfo = employees.find(m => m.name === memberName) || { name: memberName, title: '未知', group: '未知' };
+        
         const recordData = {
           ...formData, name: memberInfo.name, title: memberInfo.title, group: memberInfo.group,
           ...fees, distance: finalDist || 0, totalDistance: (finalDist || 0) * (formData.isRoundTrip ? 2 : 1),
-          createdAt: serverTimestamp(), userId: user.uid, status: 'pending'
+          createdAt: serverTimestamp(), userId: user?.uid || 'anonymous', status: 'pending'
         };
         delete recordData.memberNames; 
         await addDoc(recordsRef, recordData);
@@ -1076,7 +1054,6 @@ export default function App() {
     }
   };
 
-  // 匯出 CSV (差勤總表)
   const handleExportCSV = () => {
     let csvContent = "\uFEFF"; 
     csvContent += "姓名,職稱,組別,到職日,剩餘特休天數,剩餘特休時數,剩餘補休天數,剩餘補休時數,已請事假天數,已請事假時數,已請病假天數,已請病假時數,已請喪假天數,已請喪假時數\r\n";
@@ -1115,7 +1092,6 @@ export default function App() {
     showToast('假日加班協商歷史清冊已匯出！', 'success');
   };
 
-  // 100% 標楷體 Word 簽呈格式 - 差假請示單匯出
   const handleExportTravelWord = () => {
     if (selectedRecordIds.length === 0) {
       return showDialog('alert', '提示', '請先在列表中勾選要匯出的紀錄');
@@ -1213,7 +1189,6 @@ export default function App() {
         `;
       });
 
-      // 補足空白列至6列
       for (let i = groupKeys.length; i < 6; i++) {
          rowsHtml += `<tr><td style="border: 1px solid black; padding: 6px;">&nbsp;</td><td style="border: 1px solid black;"></td><td style="border: 1px solid black;"></td><td style="border: 1px solid black;"></td><td colspan="2" style="border: 1px solid black;"></td><td style="border: 1px solid black;"></td><td style="border: 1px solid black;"></td><td style="border: 1px solid black;"></td><td style="border: 1px solid black;"></td><td style="border: 1px solid black;"></td></tr>`;
       }
@@ -1282,10 +1257,7 @@ export default function App() {
     }
   };
 
-  // 100% 會計專用 標楷體雙欄 Excel 出差旅費報告表 (帶有動態公式與中文大寫)
   const exportExcel = (memberName = 'all') => {
-    
-    
     let dataToExport = records.filter(r => {
       const rStatus = r.status || 'pending';
       const matchMember = memberName === 'all' || r.name === memberName;
@@ -1506,118 +1478,122 @@ export default function App() {
     }
   };
 
-  // 審核同意請假（自動扣抵特休、補休，或累加事/病/喪假）
   const handleApproveLeave = async (reqId) => {
+    if (!db) return showDialog('alert', '系統錯誤', '資料庫尚未連線，請重新整理');
     const req = requests.find((r: any) => r.id === reqId) as any;
     if (!req) return;
     
     const emp = employees.find(e => e.name === req.applicant);
-    if (!emp) return;
+    if (!emp) {
+       return showDialog('alert', '錯誤', `找不到同仁 ${req.applicant} 的帳戶資料，無法核扣！請確認該員是否仍在清單中。`);
+    }
 
-    let updatedRemainingTe = { ...emp.remainingTe };
-    let updatedRemainingBu = { ...emp.remainingBu };
-    let updatedTakenShi = { ...emp.takenShi };
-    let updatedTakenBing = { ...emp.takenBing };
-    let updatedTakenSang = { ...emp.takenSang };
+    let updatedRemainingTe = { ...(emp.remainingTe || { d: 0, h: 0 }) };
+    let updatedRemainingBu = { ...(emp.remainingBu || { d: 0, h: 0 }) };
+    let updatedTakenShi = { ...(emp.takenShi || { d: 0, h: 0 }) };
+    let updatedTakenBing = { ...(emp.takenBing || { d: 0, h: 0 }) };
+    let updatedTakenSang = { ...(emp.takenSang || { d: 0, h: 0 }) };
 
-    const totalHours = req.hours;
+    const totalHours = Number(req.hours) || 0;
+    
     if (req.leaveType === '特休') {
-      let currTotalHours = emp.remainingTe.d * 8 + emp.remainingTe.h;
+      let currTotalHours = updatedRemainingTe.d * 8 + updatedRemainingTe.h;
       if (currTotalHours < totalHours) {
-        showDialog('alert', '錯誤', '核准失敗！該同仁賸餘特休時數不足。');
-        return;
+        return showDialog('alert', '錯誤', '核准失敗！該同仁賸餘特休時數不足。');
       }
       currTotalHours -= totalHours;
       updatedRemainingTe = { d: Math.floor(currTotalHours / 8), h: Math.round((currTotalHours % 8) * 10) / 10 };
     } else if (req.leaveType === '補休') {
-      let currTotalHours = emp.remainingBu.d * 8 + emp.remainingBu.h;
+      let currTotalHours = updatedRemainingBu.d * 8 + updatedRemainingBu.h;
       if (currTotalHours < totalHours) {
-        showDialog('alert', '錯誤', '核准失敗！該同仁賸餘補休時數不足。');
-        return;
+        return showDialog('alert', '錯誤', '核准失敗！該同仁賸餘補休時數不足。');
       }
       currTotalHours -= totalHours;
       updatedRemainingBu = { d: Math.floor(currTotalHours / 8), h: Math.round((currTotalHours % 8) * 10) / 10 };
     } else if (req.leaveType === '事假') {
-      let currTotalHours = emp.takenShi.d * 8 + emp.takenShi.h;
+      let currTotalHours = updatedTakenShi.d * 8 + updatedTakenShi.h;
       currTotalHours += totalHours;
       updatedTakenShi = { d: Math.floor(currTotalHours / 8), h: Math.round((currTotalHours % 8) * 10) / 10 };
     } else if (req.leaveType === '病假') {
-      let currTotalHours = emp.takenBing.d * 8 + emp.takenBing.h;
+      let currTotalHours = updatedTakenBing.d * 8 + updatedTakenBing.h;
       currTotalHours += totalHours;
       updatedTakenBing = { d: Math.floor(currTotalHours / 8), h: Math.round((currTotalHours % 8) * 10) / 10 };
     } else if (req.leaveType === '喪假') {
-      let currTotalHours = emp.takenSang.d * 8 + emp.takenSang.h;
+      let currTotalHours = updatedTakenSang.d * 8 + updatedTakenSang.h;
       currTotalHours += totalHours;
       updatedTakenSang = { d: Math.floor(currTotalHours / 8), h: Math.round((currTotalHours % 8) * 10) / 10 };
     }
 
     try {
-      await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'employees', emp.name), {
+      await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'employees', emp.name), {
         remainingTe: updatedRemainingTe,
         remainingBu: updatedRemainingBu,
         takenShi: updatedTakenShi,
         takenBing: updatedTakenBing,
         takenSang: updatedTakenSang
-      });
-      await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'leaves', req.id), { status: '核准' });
+      }, { merge: true });
+      
+      await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'leaves', req.id), { status: '核准' }, { merge: true });
       showDialog('alert', '核准成功', `已成功核准 ${req.applicant} 的 ${req.leaveType}！其時數已自動更新。`);
     } catch (e) {
-      showDialog('alert', '錯誤', '核准更新雲端失敗。');
+      console.error(e);
+      showDialog('alert', '錯誤', '核准更新雲端失敗：' + e.message);
     }
   };
 
-  // 審核假日加班（自動為名單中的同仁加總補休）
   const handleApproveOvertime = async (ot) => {
-    if (!user) return;
+    if (!db) return showDialog('alert', '系統錯誤', '資料庫尚未連線，請重新整理');
     try {
       for (const pName of ot.participants) {
-        const emp = employees.find(e => e.name === pName);
-        if (emp) {
-          let currTotalHours = emp.remainingBu.d * 8 + emp.remainingBu.h;
-          currTotalHours += ot.hours;
-          const updatedRemainingBu = { d: Math.floor(currTotalHours / 8), h: Math.round((currTotalHours % 8) * 10) / 10 };
-          await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'employees', pName), { remainingBu: updatedRemainingBu });
-        }
+        const empData = employees.find(e => e.name === pName) || INITIAL_EMPLOYEES.find(e => e.name === pName) || { remainingBu: {d: 0, h: 0} };
+        const currentBu = empData.remainingBu || {d: 0, h: 0};
+        
+        let currTotalHours = currentBu.d * 8 + currentBu.h;
+        currTotalHours += (Number(ot.hours) || 0);
+        
+        const updatedRemainingBu = { d: Math.floor(currTotalHours / 8), h: Math.round((currTotalHours % 8) * 10) / 10 };
+        await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'employees', pName), { remainingBu: updatedRemainingBu }, { merge: true });
       }
-      await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'overtimes', ot.id), { status: '已核准' });
+      
+      await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'overtimes', ot.id), { status: '已核准' }, { merge: true });
       showDialog('alert', '核准成功', `假日加班協商同意！時數已順利加至同仁帳戶。`);
     } catch (e) {
-      showDialog('alert', '錯誤', '時數加總儲存錯誤。');
+      console.error(e);
+      showDialog('alert', '錯誤', '時數加總儲存錯誤：' + e.message);
     }
   };
 
-  // 退回請假/加班
   const handleReject = (reqId) => {
-    updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'leaves', reqId), { status: '已退回' })
+    if(!db) return;
+    setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'leaves', reqId), { status: '已退回' }, { merge: true })
       .then(() => showDialog('alert', '提示', '已退回該請假單。'))
-      .catch(() => showDialog('alert', '錯誤', '退回請假單出錯。'));
+      .catch((err) => showDialog('alert', '錯誤', '退回請假單出錯：' + err.message));
   };
 
   const handleRejectOvertime = (otId) => {
-    updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'overtimes', otId), { status: '已退回' })
+    if(!db) return;
+    setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'overtimes', otId), { status: '已退回' }, { merge: true })
       .then(() => showDialog('alert', '提示', '已退回該加班協商。'))
-      .catch(() => showDialog('alert', '錯誤', '退回加班單出錯。'));
+      .catch((err) => showDialog('alert', '錯誤', '退回加班單出錯：' + err.message));
   };
 
-  // 批次更改核銷狀態
   const handleBatchStatusUpdate = async (newStatus) => {
     if (selectedRecordIds.length === 0) return showDialog('alert', '提示', '請選擇要變更狀態的差旅紀錄');
     setIsProcessing(true);
     try {
       await Promise.all(selectedRecordIds.map(async (id) => {
         const recordRef = doc(db, 'artifacts', appId, 'public', 'data', 'travel_expenses', id);
-        await updateDoc(recordRef, { status: newStatus });
+        await setDoc(recordRef, { status: newStatus }, { merge: true });
       }));
       showDialog('alert', '成功', `狀態已變更為【${newStatus === 'verified' ? '已核銷' : '待核銷'}】！`);
       setSelectedRecordIds([]);
     } catch (error) {
-      showDialog('alert', '錯誤', '變更狀態失敗。');
+      showDialog('alert', '錯誤', '變更狀態失敗：' + error.message);
     } finally {
       setIsProcessing(false);
     }
   };
 
-  // 主管密碼解鎖驗證
   const handleVerifyPassword = (e) => {
     e.preventDefault();
     if (inputPassword === correctPassword) {
@@ -1628,7 +1604,6 @@ export default function App() {
     }
   };
 
-  // 歷史資料強制刪除 (需輸入 056341014 安全防護密碼)
   const handleConfirmDelete = async (e) => {
     e.preventDefault();
     if (deletePassword !== correctDeletePassword) {
@@ -1646,7 +1621,7 @@ export default function App() {
       setDeleteTarget(null);
       setDeletePassword('');
     } catch (e) {
-      showDialog('alert', '錯誤', '寫入移除錯誤！');
+      showDialog('alert', '錯誤', '寫入移除錯誤：' + e.message);
     }
   };
 
@@ -1670,7 +1645,6 @@ export default function App() {
     }, 'password');
   };
 
-  // 跨系統核心整合：一鍵將加班名單同步至差旅填報
   const handleCarryOverToTravel = (ot) => {
     let formattedDate = ot.workDate;
     const parts = ot.workDate.split('-');
@@ -1693,11 +1667,9 @@ export default function App() {
     showDialog('alert', '智慧同步成功', `已將「${ot.activityName}」的 ${ot.participants.length} 位出勤同仁，智慧載入會計差旅費填報核心！`);
   };
 
-  // 智慧同步請假（公假且可支領差旅費）一鍵帶入出差填報
   const handleLeaveCarryOverToTravel = (req: any) => {
     const formattedDate = req.startDate || req.date;
     
-    // 智慧型出差時段判定：時數在半天(4小時)以下且在 12:00 前開始者為「上午半天」，其餘為「下午半天」
     let duration = 'full';
     if (req.hours && Number(req.hours) <= 4) {
       const startHour = req.startTime ? parseInt(req.startTime.split(':')[0], 10) : 8;
@@ -1718,8 +1690,8 @@ export default function App() {
       isMultiDay: req.startDate !== req.endDate,
       endDate: req.endDate || req.startDate,
       duration: duration,
-      isOutCounty: false, // 將由系統自動依據出差地點關鍵字判斷縣內/縣外
-      transportMode: 'car', // 預設汽車
+      isOutCounty: false, 
+      transportMode: 'car', 
       distance: '',
       isRoundTrip: true
     }));
@@ -2448,15 +2420,15 @@ export default function App() {
                               <div className="text-sm font-semibold text-slate-700 mt-0.5">{sInfo.text}</div>
                             </td>
                             <td className="px-4 py-4 bg-indigo-50/10 font-bold text-indigo-700 text-base">
-                              {emp.remainingTe.d}天 {emp.remainingTe.h}時
+                              {emp.remainingTe?.d || 0}天 {emp.remainingTe?.h || 0}時
                             </td>
                             <td className="px-4 py-4 bg-teal-50/10 font-bold text-teal-800 text-base">
-                              {emp.remainingBu.d}天 {emp.remainingBu.h}時
-                              <div className="text-[10px] text-teal-500 font-normal mt-0.5">累計剩餘 {emp.remainingBu.d * 8 + emp.remainingBu.h} 小時</div>
+                              {emp.remainingBu?.d || 0}天 {emp.remainingBu?.h || 0}時
+                              <div className="text-[10px] text-teal-500 font-normal mt-0.5">累計剩餘 {(emp.remainingBu?.d || 0) * 8 + (emp.remainingBu?.h || 0)} 小時</div>
                             </td>
-                            <td className="px-4 py-4 text-slate-600">{emp.takenShi.d}天 {emp.takenShi.h}時</td>
-                            <td className="px-4 py-4 text-slate-600">{emp.takenBing.d}天 {emp.takenBing.h}時</td>
-                            <td className="px-4 py-4 text-slate-600">{emp.takenSang.d}天 {emp.takenSang.h}時</td>
+                            <td className="px-4 py-4 text-slate-600">{emp.takenShi?.d || 0}天 {emp.takenShi?.h || 0}時</td>
+                            <td className="px-4 py-4 text-slate-600">{emp.takenBing?.d || 0}天 {emp.takenBing?.h || 0}時</td>
+                            <td className="px-4 py-4 text-slate-600">{emp.takenSang?.d || 0}天 {emp.takenSang?.h || 0}時</td>
                           </tr>
                         );
                       })}
