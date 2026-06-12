@@ -228,6 +228,7 @@ export default function App() {
   const [otHours, setOtHours] = useState(8);
   const [otActivityName, setOtActivityName] = useState('');
   const [otParticipants, setOtParticipants] = useState([]);
+  const [otLocation, setOtLocation] = useState('越港國小'); // 👇 新增這行地點狀態
 
   const [showAgreementModal, setShowAgreementModal] = useState(false);
   const [selectedOtRequest, setSelectedOtRequest] = useState(null);
@@ -1048,7 +1049,10 @@ useEffect(() => {
     if (!formApplicant) return showDialog('alert', '提示', '請選擇請假人！');
     if (!formAgent) return showDialog('alert', '提示', '請設定代理人！');
     if (isNaN(formHours) || formHours <= 0) return showDialog('alert', '提示', '請假時數不正確！');
-
+// 👇 新增這段日期防呆檢查
+    if (formEndDate < formStartDate) {
+      return showDialog('alert', '提示', '結束日期不可以早於開始日期，請確認！');
+    }
     try {
       const leavesCol = collection(db, 'artifacts', appId, 'public', 'data', 'leaves');
       await addDoc(leavesCol, {
@@ -1091,12 +1095,14 @@ useEffect(() => {
         hours: otHours,
         participants: otParticipants,
         activityName: otActivityName,
+        location: otLocation, // 👇 新增存入地點
         status: '待審核',
         appliedAt: new Date().toLocaleDateString('zh-TW')
       });
       showDialog('alert', '申報成功', '團體加班補休協商單已送出，待主管核定後，時數將自動加總補休。');
       setOtParticipants([]);
       setOtActivityName('');
+      setOtLocation('越港國小'); // 👇 送出後恢復預設地點
     } catch (err) {
       console.error(err);
       showDialog('alert', '錯誤', '申報儲存失敗：' + err.message);
@@ -1857,7 +1863,7 @@ useEffect(() => {
       date: formattedDate,
       memberNames: ot.participants,
       reason: ot.activityName,
-      destination: '', 
+      destination: ot.location || '', // 👇 把地點直接帶入差旅目的地
       isMultiDay: false,
     }));
     
@@ -2142,7 +2148,7 @@ useEffect(() => {
           <CalendarDays className="h-8 w-8 text-indigo-400 animate-pulse" />
           <div>
             <h1 className="text-xl font-bold">雲林縣數位學習推動辦公室</h1>
-            <p className="text-xs text-slate-400">出缺勤管理與差旅費核銷整合系統 (115學年度專用)</p>
+            <p className="text-xs text-slate-400">出缺勤管理與差旅費核銷整合系統 (雲林數辦專用)</p>
           </div>
         </div>
 
@@ -2209,7 +2215,7 @@ useEffect(() => {
           </div>
 
           <div className="pt-4 border-t border-slate-800 text-center text-[10px] text-slate-500 font-medium">
-            越港國小數位辦公室 · 115學年度
+            雲林縣數位學習推動辦公室
           </div>
         </aside>
 
@@ -2419,7 +2425,7 @@ useEffect(() => {
                               </span>
                             </p>
                             <p className="text-xs text-slate-600 font-semibold">
-                              日期：民國 {formatMinguoDateText(ot.workDate)} ({getWeekdayText(ot.workDate)}) 🕰️ 時段：{ot.startTime} 至 {ot.endTime}
+                              日期：民國 {formatMinguoDateText(ot.workDate)} ({getWeekdayText(ot.workDate)}) 🕰️ 時段：{ot.startTime} 至 {ot.endTime} · 📍 地點：{ot.location || '未填寫'}
                             </p>
                             <p className="text-xs text-slate-500">
                               申報出勤名冊：<strong className="text-teal-700">{ot.participants ? ot.participants.join('、') : ''}</strong>
@@ -2517,18 +2523,12 @@ useEffect(() => {
                   <form onSubmit={handleApplyLeave} className="p-6 space-y-4 text-sm">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
-                        <label className="block font-bold text-slate-700 mb-1">請假同仁 <span className="text-rose-500">*</span></label>
-                        {appUser.role === 'manager' ? (
-                          <select value={formApplicant} onChange={(e) => setFormApplicant(e.target.value)} className="w-full p-2.5 bg-white border border-slate-300 rounded-lg font-semibold">
-                            <option value="">-- 請選擇人員 --</option>
-                            {employees.map(e => <option key={e.name} value={e.name}>{e.name} ({e.group})</option>)}
-                          </select>
-                        ) : (
-                          <div className="w-full p-2.5 bg-slate-100 border border-slate-300 rounded-lg font-semibold text-slate-600 cursor-not-allowed">
-                            {appUser.employeeName} (已鎖定為您本人身分)
-                          </div>
-                        )}
-                      </div>
+  <label className="block font-bold text-slate-700 mb-1">請假同仁 (支援代填) <span className="text-rose-500">*</span></label>
+  <select value={formApplicant} onChange={(e) => setFormApplicant(e.target.value)} className="w-full p-2.5 bg-white border border-slate-300 rounded-lg font-semibold">
+    <option value="">-- 請選擇人員 --</option>
+    {employees.map(e => <option key={e.name} value={e.name}>{e.name} ({e.group})</option>)}
+  </select>
+</div>
                       <div>
                         <label className="block font-bold text-slate-700 mb-1">假別選擇 <span className="text-rose-500">*</span></label>
                         <select value={formLeaveType} onChange={(e) => setFormLeaveType(e.target.value)} className="w-full p-2.5 bg-white border border-slate-300 rounded-lg font-bold text-indigo-700">
@@ -2551,12 +2551,13 @@ useEffect(() => {
                         </div>
                       </div>
                       <div>
-                        <label className="block text-xs font-bold text-slate-600 mb-1">結束日期與時間</label>
-                        <div className="flex gap-2">
-                          <input type="date" value={formEndDate} onChange={(e) => setFormEndDate(e.target.value)} className="p-2 border rounded-lg w-3/5 font-semibold" required />
-                          <input type="time" value={formEndTime} onChange={(e) => setFormEndTime(e.target.value)} className="p-2 border rounded-lg w-2/5 font-semibold" required />
-                        </div>
-                      </div>
+  <label className="block text-xs font-bold text-slate-600 mb-1">結束日期與時間</label>
+  <div className="flex gap-2">
+    {/* 👇 這裡的 input type="date" 加入了 min 屬性 */}
+    <input type="date" value={formEndDate} min={formStartDate} onChange={(e) => setFormEndDate(e.target.value)} className="p-2 border rounded-lg w-3/5 font-semibold" required />
+    <input type="time" value={formEndTime} onChange={(e) => setFormEndTime(e.target.value)} className="p-2 border rounded-lg w-2/5 font-semibold" required />
+  </div>
+</div>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -2628,10 +2629,15 @@ useEffect(() => {
                         ))}
                       </div>
                     </div>
-
-                    <div>
-                      <label className="block font-bold text-slate-700 mb-1">研習研討會名稱 / 加班詳細事由</label>
-                      <input type="text" value={otActivityName} onChange={(e) => setOtActivityName(e.target.value)} placeholder="例如：辦理 115 年度全縣數位素養宣講增能研習" className="w-full p-2.5 border rounded-lg font-semibold outline-none focus:ring-2 focus:ring-amber-500" required />
+<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block font-bold text-slate-700 mb-1">研習/加班地點 <span className="text-rose-500">*</span></label>
+                        <input type="text" value={otLocation} onChange={(e) => setOtLocation(e.target.value)} placeholder="例如：越港國小" className="w-full p-2.5 border rounded-lg font-semibold outline-none focus:ring-2 focus:ring-amber-500" required />
+                      </div>
+                      <div>
+                        <label className="block font-bold text-slate-700 mb-1">研習研討會名稱 / 加班事由 <span className="text-rose-500">*</span></label>
+                        <input type="text" value={otActivityName} onChange={(e) => setOtActivityName(e.target.value)} placeholder="例如：辦理全縣數位素養宣講研習" className="w-full p-2.5 border rounded-lg font-semibold outline-none focus:ring-2 focus:ring-amber-500" required />
+                      </div>
                     </div>
 
                     <button type="submit" className="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-3 rounded-xl flex items-center justify-center space-x-2 transition shadow-sm">
@@ -2655,10 +2661,12 @@ useEffect(() => {
                     <h3 className="font-bold text-lg text-slate-800">數辦同仁出缺勤與特休/補休細算表 (115學年度最新狀態)</h3>
                     <p className="text-xs text-slate-500">名冊已依照會計及勞政主管機關要求之「行政人員 ➔ 資訊人員 ➔ 輔導人員」格式精準排序</p>
                   </div>
-                  <button onClick={handleExportCSV} className="bg-teal-700 hover:bg-teal-800 text-white text-xs px-4 py-2.5 rounded-lg font-bold flex items-center space-x-1.5 shadow-sm transition font-sans">
-                    <Download className="h-4 w-4" />
-                    <span>下載同仁差勤特補休總清冊 CSV</span>
-                  </button>
+                  {appUser?.role === 'manager' && (
+  <button onClick={handleExportCSV} className="bg-teal-700 hover:bg-teal-800 text-white text-xs px-4 py-2.5 rounded-lg font-bold flex items-center space-x-1.5 shadow-sm transition font-sans">
+    <Download className="h-4 w-4" />
+    <span>下載同仁差勤特補休總清冊 CSV</span>
+  </button>
+)}
                 </div>
 
                 {/* 搜尋與篩選 */}
@@ -2705,10 +2713,13 @@ useEffect(() => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-200 bg-white text-slate-700">
-                      {sortedAndFilteredEmployees.map((emp) => {
-                        const sInfo = calculateSeniorityInfo(emp.hireDate);
-                        const isRetired = emp.name === '新進人員(待定)';
-                        return (
+  {sortedAndFilteredEmployees
+    /* 加入此行過濾：如果是主管就顯示全部，否則只顯示與登入者同名的資料 */
+    .filter(emp => appUser?.role === 'manager' || emp.name === appUser?.employeeName)
+    .map((emp) => {
+      const sInfo = calculateSeniorityInfo(emp.hireDate);
+      const isRetired = emp.name === '新進人員(待定)';
+      return (
                           <tr key={emp.name} className={`hover:bg-slate-50/70 transition ${isRetired ? 'bg-slate-100/50 text-slate-400' : ''}`}>
                             <td className="px-4 py-4">
                               <div className="font-bold text-slate-900 text-base">{emp.name}</div>
@@ -2765,8 +2776,7 @@ useEffect(() => {
                           <div key={ot.id} className="py-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                             <div className="space-y-1">
                               <p className="font-bold text-slate-900 text-base">{ot.activityName} (+{ot.hours}小時)</p>
-                              <p className="text-xs text-slate-500 font-semibold">加班日：民國 {formatMinguoDateText(ot.workDate)} ({getWeekdayText(ot.workDate)})</p>
-                              <p className="text-xs text-slate-500">申報出勤同仁：<strong>{ot.participants.join('、')}</strong></p>
+                              <p className="text-xs text-slate-500 font-semibold">加班日：民國 {formatMinguoDateText(ot.workDate)} ({getWeekdayText(ot.workDate)}) · 📍 地點：{ot.location || '未填寫'}</p>
                             </div>
                             <div className="flex gap-2">
                               <button onClick={() => handleRejectOvertime(ot.id)} className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg text-xs font-bold border border-rose-200 flex items-center space-x-1">
@@ -2837,16 +2847,16 @@ useEffect(() => {
                     <label className="block font-bold text-slate-700 mb-2">出差同仁選擇 (可複選，已按行政、資訊、輔導同仁排序)</label>
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-slate-50 p-3 border border-slate-200 rounded-xl">
                       {employees
-                        .sort((a, b) => (ROLE_SORT_ORDER[a.title] || 99) - (ROLE_SORT_ORDER[b.title] || 99))
-                        .map(emp => {
-                          const isSelected = formData.memberNames.includes(emp.name);
-                          // 限制：一般同仁只能勾選自己，無法代填他人差旅
-                          const isDisabled = appUser.role === 'employee' && emp.name !== appUser.employeeName;
-                          return (
-                            <button
-                              key={emp.name} 
-                              type="button" 
-                              disabled={isDisabled}
+  .sort((a, b) => (ROLE_SORT_ORDER[a.title] || 99) - (ROLE_SORT_ORDER[b.title] || 99))
+  .map(emp => {
+    const isSelected = formData.memberNames.includes(emp.name);
+    // 解除限制：允許一般同仁代填他人差旅 (將 isDisabled 設為 false)
+    const isDisabled = false; 
+    return (
+      <button
+        key={emp.name} 
+        type="button" 
+        disabled={isDisabled}
                               onClick={() => toggleMemberSelection(emp.name)}
                               className={`flex items-center space-x-2 p-2.5 border rounded-lg transition ${isSelected ? 'border-emerald-500 bg-emerald-50 font-bold text-emerald-950 shadow-sm' : 'text-slate-600 hover:bg-slate-50 bg-white cursor-pointer'} ${isDisabled ? 'opacity-40 cursor-not-allowed bg-slate-100' : ''}`}
                             >
@@ -3616,7 +3626,7 @@ useEffect(() => {
       )}
 
       <footer className="bg-slate-950 text-slate-500 border-t border-slate-900 text-xs py-4 text-center print:hidden font-medium">
-        <p>© 115學年度 雲林縣土庫鎮越港國民小學 數位學習推動辦公室 版權所有</p>
+        <p>©      雲林縣土庫鎮越港國民小學 數位學習推動辦公室 版權所有</p>
       </footer>
     </div>
   );
