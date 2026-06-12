@@ -1849,7 +1849,7 @@ useEffect(() => {
     }, 'password');
   };
 
-  const handleCarryOverToTravel = (ot) => {
+const handleCarryOverToTravel = async (ot) => { // 👈 加上 async
     let formattedDate = ot.workDate;
     const parts = ot.workDate.split('-');
     if (parts.length === 3) {
@@ -1863,15 +1863,24 @@ useEffect(() => {
       date: formattedDate,
       memberNames: ot.participants,
       reason: ot.activityName,
-      destination: ot.location || '', // 👇 把地點直接帶入差旅目的地
+      destination: ot.location || '', 
       isMultiDay: false,
     }));
     
+    // 👇 寫入「已同步」標記到資料庫
+    if (db && ot.id) {
+      try {
+        await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'overtimes', ot.id), { isTravelSynced: true }, { merge: true });
+      } catch (e) {
+        console.error("更新同步狀態失敗:", e);
+      }
+    }
+
     setActiveTab('calc'); 
     showDialog('alert', '智慧同步成功', `已將「${ot.activityName}」的 ${ot.participants.length} 位出勤同仁，智慧載入會計差旅費填報核心！`);
   };
 
-  const handleLeaveCarryOverToTravel = (req: any) => {
+const handleLeaveCarryOverToTravel = async (req: any) => { // 👈 加上 async
     const formattedDate = req.startDate || req.date;
     
     let duration = 'full';
@@ -1899,6 +1908,15 @@ useEffect(() => {
       distance: '',
       isRoundTrip: true
     }));
+
+    // 👇 寫入「已同步」標記到資料庫
+    if (db && req.id) {
+      try {
+        await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'leaves', req.id), { isTravelSynced: true }, { merge: true });
+      } catch (e) {
+        console.error("更新同步狀態失敗:", e);
+      }
+    }
 
     setActiveTab('calc');
     showDialog(
@@ -2315,16 +2333,16 @@ useEffect(() => {
                               </button>
                             )}
                             
-                            {/* 🔗 跨系統整合：公假且核准且可領旅費者一鍵智慧同步 */}
-                            {req.status === '核准' && req.leaveType === '公假' && req.isBusinessTrip && (
-                              <button 
-                                onClick={() => handleLeaveCarryOverToTravel(req)} 
-                                className="text-xs bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 px-3 py-1.5 rounded-lg font-bold flex items-center space-x-1 transition duration-150 shadow-sm"
-                              >
-                                <ExternalLink className="h-3.5 w-3.5" />
-                                <span>🔗 智慧同步差旅</span>
-                              </button>
-                            )}
+                           {/* 🔗 跨系統整合：公假且核准且可領旅費者一鍵智慧同步 */}
+{req.status === '核准' && req.leaveType === '公假' && req.isBusinessTrip && (
+  <button 
+    onClick={() => handleLeaveCarryOverToTravel(req)} 
+    className={`text-xs px-3 py-1.5 rounded-lg font-bold flex items-center space-x-1 transition duration-150 shadow-sm ${req.isTravelSynced ? 'bg-slate-100 hover:bg-slate-200 text-slate-500 border border-slate-200' : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200'}`}
+  >
+    {req.isTravelSynced ? <CheckCircle2 className="h-3.5 w-3.5" /> : <ExternalLink className="h-3.5 w-3.5" />}
+    <span>{req.isTravelSynced ? '✔️ 已同步差旅' : '🔗 智慧同步差旅'}</span>
+  </button>
+)}
 
                             {/* 只有主管，或者申請人自己，才能看到刪除按鈕 */}
                             {(appUser.role === 'manager' || appUser.employeeName === req.applicant) && (
@@ -2464,11 +2482,14 @@ useEffect(() => {
                             )}
 
                             {ot.status === '已核准' && (
-                              <button onClick={() => handleCarryOverToTravel(ot)} className="text-xs bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 px-3 py-1.5 rounded-lg font-bold flex items-center space-x-1 transition duration-150 shadow-sm">
-                                <ExternalLink className="h-3.5 w-3.5" />
-                                <span>🔗 智慧同步差旅</span>
-                              </button>
-                            )}
+  <button 
+    onClick={() => handleCarryOverToTravel(ot)} 
+    className={`text-xs px-3 py-1.5 rounded-lg font-bold flex items-center space-x-1 transition duration-150 shadow-sm ${ot.isTravelSynced ? 'bg-slate-100 hover:bg-slate-200 text-slate-500 border border-slate-200' : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200'}`}
+  >
+    {ot.isTravelSynced ? <CheckCircle2 className="h-3.5 w-3.5" /> : <ExternalLink className="h-3.5 w-3.5" />}
+    <span>{ot.isTravelSynced ? '✔️ 已同步差旅' : '🔗 智慧同步差旅'}</span>
+  </button>
+)}
 
                             {(appUser.role === 'manager' || ot.participants?.includes(appUser.employeeName)) && (
                               <button onClick={() => setDeleteTarget({ type: 'overtime', id: ot.id, name: ot.activityName, reqData: ot })} className="p-1.5 text-rose-500 hover:bg-rose-50 border border-rose-100 rounded-lg">
