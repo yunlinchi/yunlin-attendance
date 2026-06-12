@@ -2965,7 +2965,19 @@ const handleLeaveCarryOverToTravel = async (req: any) => { // 👈 加上 async
                       </div>
                     </div>
                   </div>
-
+{/* 👇 新增的出差事由/工作記要欄位 */}
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">出差事由 / 工作記要 <span className="text-rose-500">*</span></label>
+                    <input 
+                      type="text" 
+                      name="reason" 
+                      required 
+                      value={formData.reason} 
+                      onChange={handleInputChange} 
+                      placeholder="請填寫出差原因，例如：參加數位學習推動計畫會議" 
+                      className="w-full p-2.5 bg-white border border-gray-300 rounded-lg outline-none font-semibold focus:ring-2 focus:ring-indigo-500" 
+                    />
+                  </div>
                   {formData.transportMode !== 'hsr' && (
                     <div className="bg-slate-50 p-4 border rounded-xl space-y-3">
                       <div className="flex justify-between items-center">
