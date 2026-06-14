@@ -666,8 +666,8 @@ export default function App() {
       if (dist >= 5) {
         const rate = data.transportMode === 'car' ? 3 : 2;
         const roundedDist = Math.ceil(dist); 
-        // 【修改這裡】：先將 距離 * 2(來回) * 費率，計算出總金額後再無條件進位
-        transportFee = Math.ceil(dist * 2 * rate);
+        // 【修改這裡】：改用 Math.round 進行四捨五入
+        transportFee = Math.round(dist * 2 * rate);
       }
     } else if (data.transportMode === 'hsr') {
       const outboundTicketType = data.hsrTicketTypeOutbound || data.hsrTicketType || 'standard';
