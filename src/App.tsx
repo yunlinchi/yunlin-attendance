@@ -3109,12 +3109,20 @@ const handleLeaveCarryOverToTravel = async (req: any) => { // 👈 加上 async
                   <p className="text-xs text-slate-400">支援單程未滿5公里篩抵、一秒定位。填妥後按會計標準產製彙整分頁Excel</p>
                 </div>
                 
-                <form onSubmit={handleCalculateTravel} className="p-6 space-y-5 text-sm">
-                  {/* 人員勾選 */}
-                  <div>
-                    <label className="block font-bold text-slate-700 mb-2">出差同仁選擇 (可複選，已按行政、資訊、輔導同仁排序)</label>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-slate-50 p-3 border border-slate-200 rounded-xl">
-                      {employees
+                <form 
+  onSubmit={handleCalculateTravel} 
+  onKeyDown={(e) => {
+    if (e.key === 'Enter' && e.target.tagName !== 'BUTTON') {
+      e.preventDefault();
+    }
+  }}
+  className="p-6 space-y-5 text-sm"
+>
+  {/* 人員勾選 */}
+  <div>
+    <label className="block font-bold text-slate-700 mb-2">出差同仁選擇 (可複選，已按行政、資訊、輔導同仁排序)</label>
+    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-slate-50 p-3 border border-slate-200 rounded-xl">
+      {employees
   .sort((a, b) => (ROLE_SORT_ORDER[a.title] || 99) - (ROLE_SORT_ORDER[b.title] || 99))
   .map(emp => {
     const isSelected = formData.memberNames.includes(emp.name);
