@@ -1149,6 +1149,65 @@ useEffect(() => {
       setOtHours(Math.round(diffHrs * 10) / 10);
     }
   }, [otStartTime, otEndTime]);
+  // ==========================================
+  // 👇 這是剛剛新增的：自動計算「同仁請假」時數 (請貼在下方)
+  // ==========================================
+  useEffect(() => {
+    if (!formStartDate || !formEndDate || !formStartTime || !formEndTime) return;
+
+    const start = new Date(formStartDate);
+    const end = new Date(formEndDate);
+
+    if (end < start) {
+      setFormHours(0);
+      return;
+    }
+
+    const getDayHours = (timeStart, timeEnd) => {
+      const toMinutes = (timeStr) => {
+        const [h, m] = timeStr.split(':').map(Number);
+        return h * 60 + m;
+      };
+      const startMin = toMinutes(timeStart);
+      const endMin = toMinutes(timeEnd);
+
+      const mStart = 8 * 60;       // 08:00
+      const mEnd = 12 * 60;        // 12:00
+      const aStart = 13 * 60 + 30; // 13:30
+      const aEnd = 17 * 60 + 30;   // 17:30
+
+      let mins = 0;
+
+      const mOStart = Math.max(startMin, mStart);
+      const mOEnd = Math.min(endMin, mEnd);
+      if (mOEnd > mOStart) mins += (mOEnd - mOStart);
+
+      const aOStart = Math.max(startMin, aStart);
+      const aOEnd = Math.min(endMin, aEnd);
+      if (aOEnd > aOStart) mins += (aOEnd - aOStart);
+
+      return mins / 60;
+    };
+
+    let totalHours = 0;
+    let currentDate = new Date(start);
+
+    while (currentDate <= end) {
+      const isWeekend = currentDate.getDay() === 0 || currentDate.getDay() === 6;
+      if (!isWeekend) { 
+        let tStart = '08:00';
+        let tEnd = '17:30';
+
+        if (currentDate.getTime() === start.getTime()) tStart = formStartTime;
+        if (currentDate.getTime() === end.getTime()) tEnd = formEndTime;
+
+        totalHours += getDayHours(tStart, tEnd);
+      }
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+
+    setFormHours(Math.max(0, totalHours));
+  }, [formStartDate, formEndDate, formStartTime, formEndTime]);
 
   useEffect(() => {
     const dest = formData.destination;
@@ -2791,6 +2850,18 @@ const handleLeaveCarryOverToTravel = async (req: any) => { // 👈 加上 async
                   <form onSubmit={handleApplyLeave} className="p-6 space-y-4 text-sm">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
+                        <label className="block font-bold text-slate-700 mb-1">本次請假時數 (小時) <span className="text-xs text-emerald-600 font-normal ml-1">※系統自動計算</span></label>
+                        {/* 👇 修改這裡：加上 readOnly，並改變外觀背景色讓同仁知道不能改 */}
+                        <input 
+                          type="number" 
+                          step="0.5" 
+                          value={formHours} 
+                          readOnly
+                          className="w-32 p-2.5 border border-slate-200 bg-slate-100 rounded-lg font-bold text-indigo-700 text-center text-lg cursor-not-allowed outline-none" 
+                        />
+                      </div>
+                      <div>
+                        <label className="block font-bold text-slate-700 mb-1">職務代理同仁 <span className="text-rose-500">*</span></label>
   <label className="block font-bold text-slate-700 mb-1">請假同仁 (支援代填) <span className="text-rose-500">*</span></label>
   <select value={formApplicant} onChange={(e) => setFormApplicant(e.target.value)} className="w-full p-2.5 bg-white border border-slate-300 rounded-lg font-semibold">
     <option value="">-- 請選擇人員 --</option>
