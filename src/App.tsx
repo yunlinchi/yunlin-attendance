@@ -2981,6 +2981,18 @@ const handleLeaveCarryOverToTravel = async (req: any) => { // 👈 加上 async
                         <label className="block font-bold text-slate-700 mb-1">結束時間</label>
                         <input type="time" value={otEndTime} onChange={(e) => setOtEndTime(e.target.value)} className="w-full p-2.5 border rounded-lg font-semibold bg-white" required />
                       </div>
+                  {/* 👇 這是新增的第四個欄位：顯示系統計算的時數 */}
+                      <div>
+                        <label className="block font-bold text-slate-700 mb-1">
+                          本次申報時數 <span className="text-xs text-amber-600 font-normal ml-1">※系統計算</span>
+                        </label>
+                        <input 
+                          type="text" 
+                          value={`${otHours} 小時`} 
+                          readOnly
+                          className="w-full p-2.5 border border-slate-200 bg-slate-100 rounded-lg font-bold text-amber-700 text-center text-base cursor-not-allowed outline-none" 
+                        />
+                      </div>
                     </div>
 
                     <div>
