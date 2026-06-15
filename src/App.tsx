@@ -434,8 +434,8 @@ export default function App() {
   const [formLeaveType, setFormLeaveType] = useState('特休');
   const [formStartDate, setFormStartDate] = useState(new Date().toISOString().split('T')[0]);
   const [formEndDate, setFormEndDate] = useState(new Date().toISOString().split('T')[0]);
-  const [formStartTime, setFormStartTime] = useState('08:30');
-  const [formEndTime, setFormEndTime] = useState('17:30');
+  const [formStartTime, setFormStartTime] = useState('08:00');
+  const [formEndTime, setFormEndTime] = useState('17:00');
   const [formHours, setFormHours] = useState(8);
   const [formAgent, setFormAgent] = useState('');
   const [formLocation, setFormLocation] = useState('越港國小');
@@ -811,8 +811,8 @@ export default function App() {
     const westernEndDate = convertToWestern(req.endDate || req.date);
     const formattedStartDate = westernStartDate.replace(/-/g, '');
     const formattedEndDate = westernEndDate.replace(/-/g, '');
-    const startHour = req.startTime ? req.startTime.replace(/:/g, '') : '0830';
-    const endHour = req.endTime ? req.endTime.replace(/:/g, '') : '1730';
+    const startHour = req.startTime ? req.startTime.replace(/:/g, '') : '0800';
+    const endHour = req.endTime ? req.endTime.replace(/:/g, '') : '1700';
     const startStr = `${formattedStartDate}T${startHour}00`;
     const endStr = `${formattedEndDate}T${endHour}00`;
     const title = `【請假-${req.leaveType || '出差'}】${req.applicant || req.name} (代理人: ${req.agent || '無'})`;
@@ -1143,9 +1143,7 @@ useEffect(() => {
       const [endH, endM] = otEndTime.split(':').map(Number);
       let diffHrs = (endH + endM / 60) - (startH + startM / 60);
       if (diffHrs < 0) diffHrs += 24; 
-      if (otStartTime <= '12:00' && otEndTime >= '13:00') {
-        diffHrs = Math.max(1, diffHrs - 1); 
-      }
+      
       setOtHours(Math.round(diffHrs * 10) / 10);
     }
   }, [otStartTime, otEndTime]);
@@ -1173,9 +1171,8 @@ useEffect(() => {
 
       const mStart = 8 * 60;       // 08:00
       const mEnd = 12 * 60;        // 12:00
-      const aStart = 13 * 60 + 30; // 13:30
-      const aEnd = 17 * 60 + 30;   // 17:30
-
+      const aStart = 13 * 60;      // 👈 改為 13:00 (原本是 13:30)
+      const aEnd = 17 * 60;        // 👈 改為 17:00 (原本是 17:30)
       let mins = 0;
 
       const mOStart = Math.max(startMin, mStart);
@@ -1196,7 +1193,7 @@ useEffect(() => {
       const isWeekend = currentDate.getDay() === 0 || currentDate.getDay() === 6;
       if (!isWeekend) { 
         let tStart = '08:00';
-        let tEnd = '17:30';
+        let tEnd = '17:00';
 
         if (currentDate.getTime() === start.getTime()) tStart = formStartTime;
         if (currentDate.getTime() === end.getTime()) tEnd = formEndTime;
@@ -2008,19 +2005,35 @@ useEffect(() => {
     }
   };
 
-  const handleReject = (reqId) => {
+ const handleReject = (reqId) => {
     if(!db) return;
-    setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'leaves', reqId), { status: '已退回' }, { merge: true })
-      .then(() => showDialog('alert', '提示', '已退回該請假單。'))
-      .catch((err) => showDialog('alert', '錯誤', '退回請假單出錯：' + err.message));
+    // 使用 prompt 彈窗請主管填寫原因
+    showDialog('prompt', '退回請假單', '請填寫退回此請假申請的原因或說明：', (reason) => {
+      const rejectReason = reason || '主管未說明原因';
+      setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'leaves', reqId), { 
+        status: '已退回',
+        rejectReason: rejectReason 
+      }, { merge: true })
+        .then(() => showDialog('alert', '提示', '已退回該請假單。'))
+        .catch((err) => showDialog('alert', '錯誤', '退回請假單出錯：' + err.message));
+    }, 'text');
   };
 
   const handleRejectOvertime = (otId) => {
     if(!db) return;
-    setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'overtimes', otId), { status: '已退回' }, { merge: true })
-      .then(() => showDialog('alert', '提示', '已退回該加班協商。'))
-      .catch((err) => showDialog('alert', '錯誤', '退回加班單出錯：' + err.message));
+    // 使用 prompt 彈窗請主管填寫原因
+    showDialog('prompt', '退回加班單', '請填寫退回此加班協商單的原因或說明：', (reason) => {
+      const rejectReason = reason || '主管未說明原因';
+      setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'overtimes', otId), { 
+        status: '已退回',
+        rejectReason: rejectReason // 👈 將原因存入資料庫
+      }, { merge: true })
+        .then(() => showDialog('alert', '提示', '已退回該加班協商。'))
+        .catch((err) => showDialog('alert', '錯誤', '退回加班單出錯：' + err.message));
+    }, 'text');
   };
+
+ 
 
   const handleBatchStatusUpdate = async (newStatus) => {
     if (selectedRecordIds.length === 0) return showDialog('alert', '提示', '請選擇要變更狀態的差旅紀錄');
@@ -2626,6 +2639,14 @@ const handleLeaveCarryOverToTravel = async (req: any) => { // 👈 加上 async
                               </div>
                             )}
                             <p className="text-xs italic text-slate-400 mt-1">請假詳細事由：{req.reason || '未填寫'}</p>
+                            {/* 👇 新增這段：若狀態為已退回，則顯示退回原因 */}
+                            {req.status === '已退回' && (
+                              <div className="mt-2 inline-block">
+                                <p className="text-xs text-rose-700 font-bold bg-rose-50 px-2 py-1.5 rounded-md border border-rose-200">
+                                  ⚠️ 退回原因：{req.rejectReason || '主管未說明原因'}
+                                </p>
+                              </div>
+                            )}
                           </div>
 
                           <div className="flex items-center gap-2 flex-wrap self-end sm:self-center">
@@ -2751,9 +2772,14 @@ const handleLeaveCarryOverToTravel = async (req: any) => { // 👈 加上 async
                             <p className="text-xs text-slate-600 font-semibold">
                               日期：民國 {formatMinguoDateText(ot.workDate)} ({getWeekdayText(ot.workDate)}) 🕰️ 時段：{ot.startTime} 至 {ot.endTime} · 📍 地點：{ot.location || '未填寫'}
                             </p>
-                            <p className="text-xs text-slate-500">
-                              申報出勤名冊：<strong className="text-teal-700">{ot.participants ? ot.participants.join('、') : ''}</strong>
-                            </p>
+                            {/* 👇 新增這段：若狀態為已退回，則顯示退回原因 */}
+                            {ot.status === '已退回' && (
+                              <div className="mt-2 inline-block">
+                                <p className="text-xs text-rose-700 font-bold bg-rose-50 px-2 py-1.5 rounded-md border border-rose-200">
+                                  ⚠️ 退回原因：{ot.rejectReason || '主管未說明原因'}
+                                </p>
+                              </div>
+                            )}
                           </div>
 
                           <div className="flex items-center gap-2 flex-wrap self-end sm:self-center">
