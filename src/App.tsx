@@ -2764,28 +2764,28 @@ const handleLeaveCarryOverToTravel = async (req: any) => { // 👈 加上 async
                       return (
                         <div key={ot.id} className="p-4 sm:p-5 hover:bg-slate-50/50 transition duration-150 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                           <div className="space-y-1">
-                            <p className="font-bold text-slate-800 text-base flex items-center gap-2">
-                              <span>{ot.activityName}</span>
-                              <span className="bg-amber-50 text-amber-800 px-2.5 py-0.5 rounded text-xs border border-amber-200 font-bold">
-                                補休計 +{ot.hours} 小時
-                              </span>
-                          {/* 👇 新增這塊：顯示申報人 */}
-  <span className="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded text-[11px] border border-indigo-100 font-bold">
-    申報人：{ot.applicant || '未知'}
-  </span>
-</p>
-                            <p className="text-xs text-slate-600 font-semibold">
-                              日期：民國 {formatMinguoDateText(ot.workDate)} ({getWeekdayText(ot.workDate)}) 🕰️ 時段：{ot.startTime} 至 {ot.endTime} · 📍 地點：{ot.location || '未填寫'}
-                            </p>
-                            {/* 👇 新增這段：若狀態為已退回，則顯示退回原因 */}
-                            {ot.status === '已退回' && (
-                              <div className="mt-2 inline-block">
-                                <p className="text-xs text-rose-700 font-bold bg-rose-50 px-2 py-1.5 rounded-md border border-rose-200">
-                                  ⚠️ 退回原因：{ot.rejectReason || '主管未說明原因'}
-                                </p>
-                              </div>
-                            )}
-                          </div>
+  <p className="font-bold text-slate-800 text-base flex items-center flex-wrap gap-2">
+    <span>{ot.activityName}</span>
+    <span className="bg-amber-50 text-amber-800 px-2.5 py-0.5 rounded text-xs border border-amber-200 font-bold">
+      補休計 +{ot.hours} 小時
+    </span>
+    {/* 👇 換成這個：直接在標題旁用亮色標籤顯示「加班名單」 */}
+    <span className="bg-emerald-50 text-emerald-700 px-2.5 py-0.5 rounded text-[12px] border border-emerald-200 font-bold shadow-sm">
+      🏃 加班名單：{ot.participants ? ot.participants.join('、') : ''}
+    </span>
+  </p>
+  <p className="text-xs text-slate-600 font-semibold mt-1">
+    日期：民國 {formatMinguoDateText(ot.workDate)} ({getWeekdayText(ot.workDate)}) 🕰️ 時段：{ot.startTime} 至 {ot.endTime} · 📍 地點：{ot.location || '未填寫'}
+  </p>
+  {/* 👇 退回原因保留 */}
+  {ot.status === '已退回' && (
+    <div className="mt-2 inline-block">
+      <p className="text-xs text-rose-700 font-bold bg-rose-50 px-2 py-1.5 rounded-md border border-rose-200">
+        ⚠️ 退回原因：{ot.rejectReason || '主管未說明原因'}
+      </p>
+    </div>
+  )}
+</div>
 
                           <div className="flex items-center gap-2 flex-wrap self-end sm:self-center">
                             <span className={`text-xs px-2.5 py-1 rounded-full font-bold ${ot.status === '已核准' ? 'bg-emerald-100 text-emerald-800' : ot.status === '待審核' ? 'bg-amber-100 text-amber-800 animate-pulse' : 'bg-rose-100 text-rose-800'}`}>
@@ -3159,14 +3159,14 @@ const handleLeaveCarryOverToTravel = async (req: any) => { // 👈 加上 async
                             <div className="space-y-1">
   <div className="flex items-center flex-wrap gap-2">
     <p className="font-bold text-slate-900 text-base">{ot.activityName} (+{ot.hours}小時)</p>
-    {/* 👇 新增這塊：顯示申報人 */}
-    <span className="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded text-[11px] border border-indigo-100 font-bold">
-      申報人：{ot.applicant || '未知'}
+    {/* 👇 同樣在主管審核區的標題旁顯示名單 */}
+    <span className="bg-emerald-50 text-emerald-700 px-2.5 py-0.5 rounded text-[12px] border border-emerald-200 font-bold shadow-sm">
+      🏃 加班名單：{ot.participants ? ot.participants.join('、') : ''}
     </span>
   </div>
-  <p className="text-xs text-slate-500 font-semibold">加班日：民國 {formatMinguoDateText(ot.workDate)} ({getWeekdayText(ot.workDate)}) · 📍 地點：{ot.location || '未填寫'}</p>
-  {/* 👇 順便把出勤名冊也加在審核區，讓主管不用切回總覽也能看名單 */}
-  <p className="text-xs text-slate-500 mt-1">出勤名冊：<strong className="text-teal-700">{ot.participants ? ot.participants.join('、') : ''}</strong></p>
+  <p className="text-xs text-slate-500 font-semibold mt-1">
+    加班日：民國 {formatMinguoDateText(ot.workDate)} ({getWeekdayText(ot.workDate)}) · 📍 地點：{ot.location || '未填寫'}
+  </p>
 </div>
                             <div className="flex gap-2">
                               <button onClick={() => handleRejectOvertime(ot.id)} className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg text-xs font-bold border border-rose-200 flex items-center space-x-1">
