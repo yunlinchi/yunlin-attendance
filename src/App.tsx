@@ -1400,7 +1400,8 @@ useEffect(() => {
         activityName: otActivityName,
         location: otLocation, // 👇 新增存入地點
         status: '待審核',
-        appliedAt: new Date().toLocaleDateString('zh-TW')
+        appliedAt: new Date().toLocaleDateString('zh-TW'), // 👈 注意！這裡的結尾必須加上逗號
+        applicant: appUser?.employeeName || '系統端' // 👈 新增這行：自動記錄目前登入的使用者為申報人
       });
       showDialog('alert', '申報成功', '團體加班補休協商單已送出，待主管核定後，時數將自動加總補休。');
       setOtParticipants([]);
@@ -2768,7 +2769,11 @@ const handleLeaveCarryOverToTravel = async (req: any) => { // 👈 加上 async
                               <span className="bg-amber-50 text-amber-800 px-2.5 py-0.5 rounded text-xs border border-amber-200 font-bold">
                                 補休計 +{ot.hours} 小時
                               </span>
-                            </p>
+                          {/* 👇 新增這塊：顯示申報人 */}
+  <span className="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded text-[11px] border border-indigo-100 font-bold">
+    申報人：{ot.applicant || '未知'}
+  </span>
+</p>
                             <p className="text-xs text-slate-600 font-semibold">
                               日期：民國 {formatMinguoDateText(ot.workDate)} ({getWeekdayText(ot.workDate)}) 🕰️ 時段：{ot.startTime} 至 {ot.endTime} · 📍 地點：{ot.location || '未填寫'}
                             </p>
@@ -3152,9 +3157,17 @@ const handleLeaveCarryOverToTravel = async (req: any) => { // 👈 加上 async
                         overtimeRequests.filter((r: any) => r.status === '待審核').map((ot: any) => (
                           <div key={ot.id} className="py-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                             <div className="space-y-1">
-                              <p className="font-bold text-slate-900 text-base">{ot.activityName} (+{ot.hours}小時)</p>
-                              <p className="text-xs text-slate-500 font-semibold">加班日：民國 {formatMinguoDateText(ot.workDate)} ({getWeekdayText(ot.workDate)}) · 📍 地點：{ot.location || '未填寫'}</p>
-                            </div>
+  <div className="flex items-center flex-wrap gap-2">
+    <p className="font-bold text-slate-900 text-base">{ot.activityName} (+{ot.hours}小時)</p>
+    {/* 👇 新增這塊：顯示申報人 */}
+    <span className="bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded text-[11px] border border-indigo-100 font-bold">
+      申報人：{ot.applicant || '未知'}
+    </span>
+  </div>
+  <p className="text-xs text-slate-500 font-semibold">加班日：民國 {formatMinguoDateText(ot.workDate)} ({getWeekdayText(ot.workDate)}) · 📍 地點：{ot.location || '未填寫'}</p>
+  {/* 👇 順便把出勤名冊也加在審核區，讓主管不用切回總覽也能看名單 */}
+  <p className="text-xs text-slate-500 mt-1">出勤名冊：<strong className="text-teal-700">{ot.participants ? ot.participants.join('、') : ''}</strong></p>
+</div>
                             <div className="flex gap-2">
                               <button onClick={() => handleRejectOvertime(ot.id)} className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg text-xs font-bold border border-rose-200 flex items-center space-x-1">
                                 <XCircle className="h-3.5 w-3.5" />
