@@ -2024,24 +2024,22 @@ useEffect(() => {
   const handleExportDetailRecords = () => {
     if (!appUser) return;
 
-    // 判斷是否為主管或管理員 (您可以依據您實際的權限變數調整，例如 isAdmin)
     const isManager = appUser.role === 'admin' || appUser.role === 'manager' || appUser.role === 'principal';
-    
-    // 設定匯出的目標名稱
     const targetName = isManager ? '全體同仁' : appUser.employeeName;
 
+    // 【修正 1】：改為 requests 與 overtimeRequests，並為過濾參數加上 (req: any) 防止 TS 報錯
     // 1. 過濾請假資料：主管看全部，同仁看自己 (申請人是自己)
     const exportLeaves = isManager 
-      ? leaves 
-      : leaves.filter(req => req.applicant === appUser.employeeName);
+      ? requests 
+      : requests.filter(req => req.applicant === appUser.employeeName);
 
     // 2. 過濾加班資料：主管看全部，同仁看自己 (出勤名冊內包含自己)
     const exportOvertimes = isManager 
-      ? overtimes 
-      : overtimes.filter(ot => ot.participants && ot.participants.includes(appUser.employeeName));
+      ? overtimeRequests 
+      : overtimeRequests.filter(ot => ot.participants && ot.participants.includes(appUser.employeeName));
 
-    // 格式化請假資料供 Excel 使用
-    const leavesData = exportLeaves.map(req => ({
+    // 【修正 2】：加上 : any[] 宣告，防止下方如果沒有資料 push 提示字串時，產生陣列型別衝突
+    const leavesData: any[] = exportLeaves.map((req: any) => ({
       '申請人': req.applicant,
       '假別': req.leaveType,
       '請假開始': `${req.startDate} ${req.startTime}`,
@@ -2055,8 +2053,7 @@ useEffect(() => {
       '送單人': req.submitter || req.applicant
     }));
 
-    // 格式化加班資料供 Excel 使用
-    const overtimesData = exportOvertimes.map(ot => ({
+    const overtimesData: any[] = exportOvertimes.map((ot: any) => ({
       '加班事由': ot.activityName,
       '出勤名冊': ot.participants ? ot.participants.join('、') : '',
       '加班日期': ot.workDate,
@@ -2086,19 +2083,6 @@ useEffect(() => {
     const todayStr = new Date().toLocaleDateString('zh-TW').replace(/\//g, '');
     const fileName = `${targetName}_差勤明細_${todayStr}.xlsx`;
     XLSX.writeFile(wb, fileName);
-  };
-  const handleRejectOvertime = (otId) => {
-    if(!db) return;
-    // 使用 prompt 彈窗請主管填寫原因
-    showDialog('prompt', '退回加班單', '請填寫退回此加班協商單的原因或說明：', (reason) => {
-      const rejectReason = reason || '主管未說明原因';
-      setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'overtimes', otId), { 
-        status: '已退回',
-        rejectReason: rejectReason // 👈 將原因存入資料庫
-      }, { merge: true })
-        .then(() => showDialog('alert', '提示', '已退回該加班協商。'))
-        .catch((err) => showDialog('alert', '錯誤', '退回加班單出錯：' + err.message));
-    }, 'text');
   };
 
  
