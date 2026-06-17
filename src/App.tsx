@@ -2021,24 +2021,26 @@ useEffect(() => {
     }, 'text');
   };
 
-  const handleExportDetailRecords = () => {
+const handleExportDetailRecords = () => {
     if (!appUser) return;
 
+    // 判斷是否為主管或管理員
     const isManager = appUser.role === 'admin' || appUser.role === 'manager' || appUser.role === 'principal';
+    
+    // 設定匯出的目標名稱
     const targetName = isManager ? '全體同仁' : appUser.employeeName;
 
-    // 【修正 1】：改為 requests 與 overtimeRequests，並為過濾參數加上 (req: any) 防止 TS 報錯
-    // 1. 過濾請假資料：主管看全部，同仁看自己 (申請人是自己)
+    // 1. 【修正】過濾請假資料：變數改為 requests，並加上 (req: any) 防止 TS 報錯
     const exportLeaves = isManager 
       ? requests 
-      : requests.filter(req => req.applicant === appUser.employeeName);
+      : requests.filter((req: any) => req.applicant === appUser.employeeName);
 
-    // 2. 過濾加班資料：主管看全部，同仁看自己 (出勤名冊內包含自己)
+    // 2. 【修正】過濾加班資料：變數改為 overtimeRequests，並加上 (ot: any) 防止 TS 報錯
     const exportOvertimes = isManager 
       ? overtimeRequests 
-      : overtimeRequests.filter(ot => ot.participants && ot.participants.includes(appUser.employeeName));
+      : overtimeRequests.filter((ot: any) => ot.participants && ot.participants.includes(appUser.employeeName));
 
-    // 【修正 2】：加上 : any[] 宣告，防止下方如果沒有資料 push 提示字串時，產生陣列型別衝突
+    // 格式化請假資料，並加上 : any[] 型別宣告
     const leavesData: any[] = exportLeaves.map((req: any) => ({
       '申請人': req.applicant,
       '假別': req.leaveType,
@@ -2053,6 +2055,7 @@ useEffect(() => {
       '送單人': req.submitter || req.applicant
     }));
 
+    // 格式化加班資料，並加上 : any[] 型別宣告
     const overtimesData: any[] = exportOvertimes.map((ot: any) => ({
       '加班事由': ot.activityName,
       '出勤名冊': ot.participants ? ot.participants.join('、') : '',
@@ -2075,36 +2078,19 @@ useEffect(() => {
     const wsLeaves = XLSX.utils.json_to_sheet(leavesData);
     const wsOvertimes = XLSX.utils.json_to_sheet(overtimesData);
 
-    // 👇 【新增】設定「請假明細」的欄位寬度 (wch代表字元寬度)
+    // 【新增】設定「請假明細」的欄位寬度，避免字被壓縮
     wsLeaves['!cols'] = [
-      { wch: 12 }, // 申請人
-      { wch: 10 }, // 假別
-      { wch: 22 }, // 請假開始 (包含日期時間，調寬)
-      { wch: 22 }, // 請假結束 (包含日期時間，調寬)
-      { wch: 10 }, // 時數
-      { wch: 45 }, // 事由 (通常很長，調寬)
-      { wch: 15 }, // 職務代理人
-      { wch: 25 }, // 地點
-      { wch: 15 }, // 目前狀態
-      { wch: 30 }, // 退回原因
-      { wch: 12 }  // 送單人
+      { wch: 12 }, { wch: 10 }, { wch: 22 }, { wch: 22 }, { wch: 10 },
+      { wch: 45 }, { wch: 15 }, { wch: 25 }, { wch: 15 }, { wch: 30 }, { wch: 12 }
     ];
 
-    // 👇 【新增】設定「加班明細」的欄位寬度
+    // 【新增】設定「加班明細」的欄位寬度
     wsOvertimes['!cols'] = [
-      { wch: 45 }, // 加班事由 (通常很長，調寬)
-      { wch: 40 }, // 出勤名冊 (多人時會很長，調寬)
-      { wch: 18 }, // 加班日期
-      { wch: 12 }, // 開始時間
-      { wch: 12 }, // 結束時間
-      { wch: 12 }, // 核算時數
-      { wch: 25 }, // 地點
-      { wch: 15 }, // 目前狀態
-      { wch: 30 }, // 退回原因
-      { wch: 12 }  // 申報人
+      { wch: 45 }, { wch: 40 }, { wch: 18 }, { wch: 12 }, { wch: 12 },
+      { wch: 12 }, { wch: 25 }, { wch: 15 }, { wch: 30 }, { wch: 12 }
     ];
 
-  // 將工作表加入活頁簿
+    // 將工作表加入活頁簿
     XLSX.utils.book_append_sheet(wb, wsLeaves, "請假明細");
     XLSX.utils.book_append_sheet(wb, wsOvertimes, "加班明細");
 
