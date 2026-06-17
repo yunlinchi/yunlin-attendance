@@ -37,7 +37,8 @@ import {
   XCircle,
   FileDown
 } from 'lucide-react';
-import XLSX from 'xlsx-js-style';
+import * as XLSX from 'xlsx-js-style'; 
+// 如果您當初裝的是普通的 xlsx，請改成 import * as XLSX from 'xlsx';
 
 // =========================================================================
 // 1. 全局環境變數與外部擴充宣告
