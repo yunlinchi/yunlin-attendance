@@ -2069,6 +2069,7 @@ const handleExportDetailRecords = () => {
       '申報人': ot.applicant || ''
     }));
 
+    
     // 若毫無資料，給予預設提示
     if (leavesData.length === 0) leavesData.push({ '提示': '目前尚無請假紀錄' });
     if (overtimesData.length === 0) overtimesData.push({ '提示': '目前尚無加班紀錄' });
