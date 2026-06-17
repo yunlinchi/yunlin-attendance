@@ -2075,7 +2075,36 @@ useEffect(() => {
     const wsLeaves = XLSX.utils.json_to_sheet(leavesData);
     const wsOvertimes = XLSX.utils.json_to_sheet(overtimesData);
 
-    // 將工作表加入活頁簿
+    // 👇 【新增】設定「請假明細」的欄位寬度 (wch代表字元寬度)
+    wsLeaves['!cols'] = [
+      { wch: 12 }, // 申請人
+      { wch: 10 }, // 假別
+      { wch: 22 }, // 請假開始 (包含日期時間，調寬)
+      { wch: 22 }, // 請假結束 (包含日期時間，調寬)
+      { wch: 10 }, // 時數
+      { wch: 45 }, // 事由 (通常很長，調寬)
+      { wch: 15 }, // 職務代理人
+      { wch: 25 }, // 地點
+      { wch: 15 }, // 目前狀態
+      { wch: 30 }, // 退回原因
+      { wch: 12 }  // 送單人
+    ];
+
+    // 👇 【新增】設定「加班明細」的欄位寬度
+    wsOvertimes['!cols'] = [
+      { wch: 45 }, // 加班事由 (通常很長，調寬)
+      { wch: 40 }, // 出勤名冊 (多人時會很長，調寬)
+      { wch: 18 }, // 加班日期
+      { wch: 12 }, // 開始時間
+      { wch: 12 }, // 結束時間
+      { wch: 12 }, // 核算時數
+      { wch: 25 }, // 地點
+      { wch: 15 }, // 目前狀態
+      { wch: 30 }, // 退回原因
+      { wch: 12 }  // 申報人
+    ];
+
+  // 將工作表加入活頁簿
     XLSX.utils.book_append_sheet(wb, wsLeaves, "請假明細");
     XLSX.utils.book_append_sheet(wb, wsOvertimes, "加班明細");
 
@@ -2085,7 +2114,6 @@ useEffect(() => {
     XLSX.writeFile(wb, fileName);
   };
 
- 
 
   const handleBatchStatusUpdate = async (newStatus) => {
     if (selectedRecordIds.length === 0) return showDialog('alert', '提示', '請選擇要變更狀態的差旅紀錄');
