@@ -2020,6 +2020,72 @@ useEffect(() => {
     }, 'text');
   };
 
+  const handleExportDetailRecords = () => {
+    if (!appUser) return;
+
+    // 判斷是否為主管或管理員 (您可以依據您實際的權限變數調整，例如 isAdmin)
+    const isManager = appUser.role === 'admin' || appUser.role === 'manager' || appUser.role === 'principal';
+    
+    // 設定匯出的目標名稱
+    const targetName = isManager ? '全體同仁' : appUser.employeeName;
+
+    // 1. 過濾請假資料：主管看全部，同仁看自己 (申請人是自己)
+    const exportLeaves = isManager 
+      ? leaves 
+      : leaves.filter(req => req.applicant === appUser.employeeName);
+
+    // 2. 過濾加班資料：主管看全部，同仁看自己 (出勤名冊內包含自己)
+    const exportOvertimes = isManager 
+      ? overtimes 
+      : overtimes.filter(ot => ot.participants && ot.participants.includes(appUser.employeeName));
+
+    // 格式化請假資料供 Excel 使用
+    const leavesData = exportLeaves.map(req => ({
+      '申請人': req.applicant,
+      '假別': req.leaveType,
+      '請假開始': `${req.startDate} ${req.startTime}`,
+      '請假結束': `${req.endDate} ${req.endTime}`,
+      '時數': req.hours,
+      '事由': req.reason || '未填寫',
+      '職務代理人': req.agent || '無',
+      '地點': req.location || '無',
+      '目前狀態': req.status,
+      '退回原因': req.rejectReason || '',
+      '送單人': req.submitter || req.applicant
+    }));
+
+    // 格式化加班資料供 Excel 使用
+    const overtimesData = exportOvertimes.map(ot => ({
+      '加班事由': ot.activityName,
+      '出勤名冊': ot.participants ? ot.participants.join('、') : '',
+      '加班日期': ot.workDate,
+      '開始時間': ot.startTime,
+      '結束時間': ot.endTime,
+      '核算時數': ot.hours,
+      '地點': ot.location || '無',
+      '目前狀態': ot.status,
+      '退回原因': ot.rejectReason || '',
+      '申報人': ot.applicant || ''
+    }));
+
+    // 若毫無資料，給予預設提示
+    if (leavesData.length === 0) leavesData.push({ '提示': '目前尚無請假紀錄' });
+    if (overtimesData.length === 0) overtimesData.push({ '提示': '目前尚無加班紀錄' });
+
+    // 建立 Excel 活頁簿與工作表
+    const wb = XLSX.utils.book_new();
+    const wsLeaves = XLSX.utils.json_to_sheet(leavesData);
+    const wsOvertimes = XLSX.utils.json_to_sheet(overtimesData);
+
+    // 將工作表加入活頁簿
+    XLSX.utils.book_append_sheet(wb, wsLeaves, "請假明細");
+    XLSX.utils.book_append_sheet(wb, wsOvertimes, "加班明細");
+
+    // 產出檔名並下載
+    const todayStr = new Date().toLocaleDateString('zh-TW').replace(/\//g, '');
+    const fileName = `${targetName}_差勤明細_${todayStr}.xlsx`;
+    XLSX.writeFile(wb, fileName);
+  };
   const handleRejectOvertime = (otId) => {
     if(!db) return;
     // 使用 prompt 彈窗請主管填寫原因
@@ -2566,9 +2632,9 @@ const handleLeaveCarryOverToTravel = async (req: any) => { // 👈 加上 async
           {activeTab === 'attendance_dashboard' && (
             <div className="space-y-6">
               
-              {/* 同仁請假最新狀態 */}
+             {/* 同仁請假最新狀態 */}
               <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                <div className="p-5 border-b border-slate-100 bg-slate-50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                <div className="p-5 border-b border-slate-100 bg-slate-50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                   <div>
                     <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
                       <Clock className="text-indigo-600 h-5 w-5" />
@@ -2576,6 +2642,14 @@ const handleLeaveCarryOverToTravel = async (req: any) => { // 👈 加上 async
                     </h3>
                     <p className="text-xs text-slate-500">雲端即時連線同步，記錄同仁事假、特休、公假、代理人設定資訊</p>
                   </div>
+                  
+                  {/* 👇 新增這顆匯出按鈕，它會自動靠右對齊 */}
+                  <button 
+                    onClick={handleExportDetailRecords}
+                    className="flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg font-bold transition-colors shadow-sm text-sm shrink-0"
+                  >
+                    <span>📥 匯出明細 (Excel)</span>
+                  </button>
                 </div>
 
                 {/* 歷史請假篩選與搜尋 */}
