@@ -1965,7 +1965,11 @@ useEffect(() => {
         takenSang: updatedTakenSang
       }, { merge: true });
       
-      await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'leaves', req.id), { status: '核准' }, { merge: true });
+      // 👇 正確在這裡新增 approver 欄位
+      await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'leaves', req.id), { 
+        status: '核准',
+        approver: appUser?.employeeName || '未知主管' 
+      }, { merge: true });
       showDialog('alert', '核准成功', `已成功核准 ${req.applicant} 的 ${currentLeaveType}！其時數已自動更新。`);
     } catch (e) {
       console.error(e);
@@ -1999,7 +2003,11 @@ useEffect(() => {
         );
       }
       
-      await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'overtimes', ot.id), { status: '已核准' }, { merge: true });
+      // 👇 修正語法，正確寫入狀態與審核主管
+      await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'overtimes', ot.id), { 
+        status: '已核准',
+        approver: appUser?.employeeName || '未知主管'
+      }, { merge: true });
       showDialog('alert', '核准成功', `假日加班協商同意！時數已順利加至同仁帳戶。`);
     } catch (e) {
       console.error(e);
@@ -2014,7 +2022,8 @@ useEffect(() => {
       const rejectReason = reason || '主管未說明原因';
       setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'leaves', reqId), { 
         status: '已退回',
-        rejectReason: rejectReason 
+        rejectReason: rejectReason,
+        approver: appUser?.employeeName || '未知主管' // 👇 新增這行
       }, { merge: true })
         .then(() => showDialog('alert', '提示', '已退回該請假單。'))
         .catch((err) => showDialog('alert', '錯誤', '退回請假單出錯：' + err.message));
@@ -2030,17 +2039,15 @@ const handleExportDetailRecords = () => {
     // 設定匯出的目標名稱
     const targetName = isManager ? '全體同仁' : appUser.employeeName;
 
-    // 1. 【修正】過濾請假資料：變數改為 requests，並加上 (req: any) 防止 TS 報錯
     const exportLeaves = isManager 
       ? requests 
       : requests.filter((req: any) => req.applicant === appUser.employeeName);
 
-    // 2. 【修正】過濾加班資料：變數改為 overtimeRequests，並加上 (ot: any) 防止 TS 報錯
     const exportOvertimes = isManager 
       ? overtimeRequests 
       : overtimeRequests.filter((ot: any) => ot.participants && ot.participants.includes(appUser.employeeName));
 
-    // 格式化請假資料，並加上 : any[] 型別宣告
+    // 格式化請假資料
     const leavesData: any[] = exportLeaves.map((req: any) => ({
       '申請人': req.applicant,
       '假別': req.leaveType,
@@ -2051,11 +2058,12 @@ const handleExportDetailRecords = () => {
       '職務代理人': req.agent || '無',
       '地點': req.location || '無',
       '目前狀態': req.status,
+      '審核主管': req.approver || '', // 👇 新增審核主管欄位
       '退回原因': req.rejectReason || '',
       '送單人': req.submitter || req.applicant
     }));
 
-    // 格式化加班資料，並加上 : any[] 型別宣告
+    // 格式化加班資料
     const overtimesData: any[] = exportOvertimes.map((ot: any) => ({
       '加班事由': ot.activityName,
       '出勤名冊': ot.participants ? ot.participants.join('、') : '',
@@ -2065,30 +2073,26 @@ const handleExportDetailRecords = () => {
       '核算時數': ot.hours,
       '地點': ot.location || '無',
       '目前狀態': ot.status,
+      '審核主管': ot.approver || '', // 👇 新增審核主管欄位
       '退回原因': ot.rejectReason || '',
       '申報人': ot.applicant || ''
     }));
 
-    
-    // 若毫無資料，給予預設提示
-    if (leavesData.length === 0) leavesData.push({ '提示': '目前尚無請假紀錄' });
-    if (overtimesData.length === 0) overtimesData.push({ '提示': '目前尚無加班紀錄' });
-
-    // 建立 Excel 活頁簿與工作表
+    // 👇 補回被你「// ...中間省略...」誤刪除的核心代碼
     const wb = XLSX.utils.book_new();
     const wsLeaves = XLSX.utils.json_to_sheet(leavesData);
     const wsOvertimes = XLSX.utils.json_to_sheet(overtimesData);
 
-    // 【新增】設定「請假明細」的欄位寬度，避免字被壓縮
+    // 【新增】設定「請假明細」的欄位寬度
     wsLeaves['!cols'] = [
       { wch: 12 }, { wch: 10 }, { wch: 22 }, { wch: 22 }, { wch: 10 },
-      { wch: 45 }, { wch: 15 }, { wch: 25 }, { wch: 15 }, { wch: 30 }, { wch: 12 }
+      { wch: 45 }, { wch: 15 }, { wch: 25 }, { wch: 15 }, { wch: 15 }, { wch: 30 }, { wch: 12 } 
     ];
 
     // 【新增】設定「加班明細」的欄位寬度
     wsOvertimes['!cols'] = [
       { wch: 45 }, { wch: 40 }, { wch: 18 }, { wch: 12 }, { wch: 12 },
-      { wch: 12 }, { wch: 25 }, { wch: 15 }, { wch: 30 }, { wch: 12 }
+      { wch: 12 }, { wch: 25 }, { wch: 15 }, { wch: 15 }, { wch: 30 }, { wch: 12 }
     ];
 
     // 將工作表加入活頁簿
@@ -2100,7 +2104,6 @@ const handleExportDetailRecords = () => {
     const fileName = `${targetName}_差勤明細_${todayStr}.xlsx`;
     XLSX.writeFile(wb, fileName);
   };
-
 
   const handleBatchStatusUpdate = async (newStatus) => {
     if (selectedRecordIds.length === 0) return showDialog('alert', '提示', '請選擇要變更狀態的差旅紀錄');
@@ -2179,7 +2182,7 @@ const handleExportDetailRecords = () => {
 
         await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'leaves', deleteTarget.id));
         showDialog('alert', '成功', (req && req.status === '核准') ? '請假單已永久移除，且已自動「退還」該筆假單時數給同仁！' : '請假單已永久移除！');
-      
+        
       } else if (deleteTarget.type === 'overtime') {
         const ot = deleteTarget.reqData;
         
