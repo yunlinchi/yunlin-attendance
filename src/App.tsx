@@ -139,7 +139,7 @@ const INITIAL_EMPLOYEES: Employee[] = [
   { name: '陳奕瑄', title: '輔導人員', group: '南區小組', hireDate: '115/02/09', remainingTe: { d: 0, h: 0 }, remainingBu: { d: 2, h: 5 }, takenShi: { d: 0, h: 0 }, takenBing: { d: 0, h: 0 }, takenSang: { d: 0, h: 0 } }, 
   { name: '黃銘麒', title: '輔導人員', group: '北區小組', hireDate: '115/02/01', remainingTe: { d: 0, h: 0 }, remainingBu: { d: 3, h: 2 }, takenShi: { d: 0, h: 0 }, takenBing: { d: 0, h: 0 }, takenSang: { d: 0, h: 0 } },
   { name: '龔柏逢', title: '資訊人員', group: '北區小組', hireDate: '111/07/05', remainingTe: { d: 6, h: 7 }, remainingBu: { d: 4, h: 6 }, takenShi: { d: 0, h: 0 }, takenBing: { d: 0, h: 0 }, takenSang: { d: 0, h: 0 } }, 
-  { name: '新進人員(待定)', title: '資訊人員', group: '東區小組', hireDate: '',   remainingTe: { d: 0, h: 0 }, remainingBu: { d: 0, h: 0 }, takenShi: { d: 0, h: 0 }, takenBing: { d: 0, h: 0 }, takenSang: { d: 0, h: 0 } }, 
+  { name: '簡伯硯', title: '資訊人員', group: '東區小組', hireDate: '115/07/01', remainingTe: { d: 0, h: 0 }, remainingBu: { d: 0, h: 0 }, takenShi: { d: 0, h: 0 }, takenBing: { d: 0, h: 0 }, takenSang: { d: 0, h: 0 } }, 
   { name: '呂其樺', title: '資訊人員', group: '南區小組', hireDate: '112/08/07', remainingTe: { d: 6, h: 7 }, remainingBu: { d: 1, h: 1 }, takenShi: { d: 0, h: 0 }, takenBing: { d: 0, h: 0 }, takenSang: { d: 0, h: 0 } }, 
   { name: '蒲信宏', title: '資訊人員', group: '西區小組', hireDate: '114/07/01', remainingTe: { d: 3, h: 0 }, remainingBu: { d: 1, h: 7 }, takenShi: { d: 0, h: 0 }, takenBing: { d: 0, h: 0 }, takenSang: { d: 0, h: 0 } }
 ];
