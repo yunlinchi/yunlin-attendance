@@ -12,6 +12,15 @@ dist
 dist-ssr
 *.local
 
+# 機密金鑰 — 絕對不要進版控
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+service-account*.json
+serviceAccount*.json
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

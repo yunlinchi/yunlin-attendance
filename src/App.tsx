@@ -829,6 +829,29 @@ export default function App() {
     showToast('已安全開啟 Google 行事曆新增頁面！');
   };
 
+  // 主管核准後，自動同步到「數辦公用 Google 行事曆」
+  // 前端只送「類型 + 文件ID + appId」，由後端 /api/sync-calendar 自行驗證狀態後寫入行事曆
+  const syncToOfficeCalendar = async (type: 'leave' | 'overtime', id: string) => {
+    try {
+      const res = await fetch('/api/sync-calendar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type, id, appId }),
+      });
+      const result = await res.json();
+      if (result.ok) {
+        setSyncedRequests(p => (p.includes(id) ? p : [...p, id]));
+        showToast('已自動同步至數辦公用行事曆！');
+      } else {
+        console.warn('行事曆同步未成功：', result.error);
+        showToast('核准成功，但行事曆自動同步失敗：' + (result.error || '未知原因'));
+      }
+    } catch (e: any) {
+      console.warn('行事曆同步呼叫失敗：', e);
+      showToast('核准成功，但暫時無法連線行事曆同步服務');
+    }
+  };
+
   const getTravelDistance = async (start, dest) => {
     if (!gmapsKey) return null;
     const startAddr = COMMON_LOCATIONS.find(l => l.name === start)?.address || start;
@@ -1966,10 +1989,12 @@ useEffect(() => {
       }, { merge: true });
       
       // 👇 正確在這裡新增 approver 欄位
-      await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'leaves', req.id), { 
+      await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'leaves', req.id), {
         status: '核准',
-        approver: appUser?.employeeName || '未知主管' 
+        approver: appUser?.employeeName || '未知主管'
       }, { merge: true });
+      // 核准後自動同步至數辦公用行事曆（非阻斷：失敗不影響核准結果）
+      syncToOfficeCalendar('leave', req.id);
       showDialog('alert', '核准成功', `已成功核准 ${req.applicant} 的 ${currentLeaveType}！其時數已自動更新。`);
     } catch (e) {
       console.error(e);
@@ -2004,10 +2029,12 @@ useEffect(() => {
       }
       
       // 👇 修正語法，正確寫入狀態與審核主管
-      await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'overtimes', ot.id), { 
+      await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'overtimes', ot.id), {
         status: '已核准',
         approver: appUser?.employeeName || '未知主管'
       }, { merge: true });
+      // 核准後自動同步至數辦公用行事曆（非阻斷：失敗不影響核准結果）
+      syncToOfficeCalendar('overtime', ot.id);
       showDialog('alert', '核准成功', `假日加班協商同意！時數已順利加至同仁帳戶。`);
     } catch (e) {
       console.error(e);
