@@ -63,6 +63,13 @@ function toWesternDate(dateStr) {
   return dateStr;
 }
 
+// 全天事件的結束日是「不含當天」，需 +1 天（用 UTC 計算避免時區位移）
+function addOneDay(dateStr) {
+  const d = new Date(`${dateStr}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + 1);
+  return d.toISOString().slice(0, 10);
+}
+
 function normalizeTime(t, fallback) {
   if (!t) return fallback;
   // 接受 "8:00" / "08:00" / "0800"
@@ -84,6 +91,7 @@ function buildEvent(type, data) {
     const endTime = normalizeTime(data.endTime, '17:00');
     const title = `【請假-${data.leaveType || '出差'}】${data.applicant || ''}（代理人：${data.agent || '無'}）`;
     let description =
+      `🕒 時間：${startDate} ${startTime} ~ ${endDate} ${endTime}\n` +
       `請假同仁：${data.applicant || ''}\n` +
       `請假類別：${data.leaveType || '出差公出'}\n` +
       `時數：${data.hours || 0} 小時\n` +
@@ -96,8 +104,9 @@ function buildEvent(type, data) {
       summary: title,
       description,
       location: data.location || data.destination || '',
-      start: { dateTime: `${startDate}T${startTime}:00`, timeZone: TIME_ZONE },
-      end: { dateTime: `${endDate}T${endTime}:00`, timeZone: TIME_ZONE },
+      // 以「全天事件」呈現（避免時數非整天時在行事曆上變成一個小點）；實際時間寫在備註
+      start: { date: startDate },
+      end: { date: addOneDay(endDate) },
     };
   }
 
@@ -109,13 +118,15 @@ function buildEvent(type, data) {
   return {
     summary: `【加班-補休】${data.activityName || '假日加班'}（${people}）`,
     description:
+      `🕒 時間：${workDate} ${startTime} ~ ${endTime}\n` +
       `活動／加班事由：${data.activityName || ''}\n` +
       `加班同仁：${people}\n` +
       `時數：${data.hours || 0} 小時\n` +
       `核准主管：${data.approver || ''}`,
     location: data.location || '',
-    start: { dateTime: `${workDate}T${startTime}:00`, timeZone: TIME_ZONE },
-    end: { dateTime: `${workDate}T${endTime}:00`, timeZone: TIME_ZONE },
+    // 以「全天事件」呈現；實際時間寫在備註
+    start: { date: workDate },
+    end: { date: addOneDay(workDate) },
   };
 }
 
