@@ -96,7 +96,8 @@ function buildEvent(type, data) {
       `請假類別：${data.leaveType || '出差公出'}\n` +
       `時數：${data.hours || 0} 小時\n` +
       `事由：${data.reason || '未填寫'}\n` +
-      `核准主管：${data.approver || ''}`;
+      `核准主管：${data.approver || ''}\n` +
+      `核准時間：${data.approvedAt || ''}`;
     if (data.leaveType === '公假') {
       description += `\n起訖地點：${data.location || ''}\n出差旅費：${data.isBusinessTrip ? '可請領差旅費' : '不具出差性質'}`;
     }
@@ -122,7 +123,8 @@ function buildEvent(type, data) {
       `活動／加班事由：${data.activityName || ''}\n` +
       `加班同仁：${people}\n` +
       `時數：${data.hours || 0} 小時\n` +
-      `核准主管：${data.approver || ''}`,
+      `核准主管：${data.approver || ''}\n` +
+      `核准時間：${data.approvedAt || ''}`,
     location: data.location || '',
     // 以「全天事件」呈現；實際時間寫在備註
     start: { date: workDate },

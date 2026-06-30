@@ -1991,7 +1991,8 @@ useEffect(() => {
       // 👇 正確在這裡新增 approver 欄位
       await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'leaves', req.id), {
         status: '核准',
-        approver: appUser?.employeeName || '未知主管'
+        approver: appUser?.employeeName || '未知主管',
+        approvedAt: new Date().toLocaleString('zh-TW', { hour12: false, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
       }, { merge: true });
       // 核准後自動同步至數辦公用行事曆（非阻斷：失敗不影響核准結果）
       syncToOfficeCalendar('leave', req.id);
@@ -2031,7 +2032,8 @@ useEffect(() => {
       // 👇 修正語法，正確寫入狀態與審核主管
       await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'overtimes', ot.id), {
         status: '已核准',
-        approver: appUser?.employeeName || '未知主管'
+        approver: appUser?.employeeName || '未知主管',
+        approvedAt: new Date().toLocaleString('zh-TW', { hour12: false, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
       }, { merge: true });
       // 核准後自動同步至數辦公用行事曆（非阻斷：失敗不影響核准結果）
       syncToOfficeCalendar('overtime', ot.id);
@@ -2086,6 +2088,7 @@ const handleExportDetailRecords = () => {
       '地點': req.location || '無',
       '目前狀態': req.status,
       '審核主管': req.approver || '', // 👇 新增審核主管欄位
+      '核准時間': req.approvedAt || '',
       '退回原因': req.rejectReason || '',
       '送單人': req.submitter || req.applicant
     }));
@@ -2101,6 +2104,7 @@ const handleExportDetailRecords = () => {
       '地點': ot.location || '無',
       '目前狀態': ot.status,
       '審核主管': ot.approver || '', // 👇 新增審核主管欄位
+      '核准時間': ot.approvedAt || '',
       '退回原因': ot.rejectReason || '',
       '申報人': ot.applicant || ''
     }));
